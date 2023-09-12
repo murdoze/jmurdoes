@@ -2,16 +2,28 @@
 \ Block editor
 \ ************
 
-\ Blocks
+\ Shortcuts
 
 : let constant ;
+: var ( v "name" -- ) create , does> ;
 
-1024 let blk
-1024 let blks
-blk blks * let blk-area
+\ Blocks
+
+1024 let blks#
+1024 let blk-size
+64 let line-size
+blks# blk-size * let blk-area
 
 create block0 blk-area allot
 block0 blk-area bl fill
+0 var current-blk
+
+: block ( n -- a ) blk-size * block0 + current-blk ! ;
+: line ( n -- n*line-len ) line-size * ;
+
+: b! ( c a -- ) \ sets character at given offset relative to current block
+  current-blk + c! ;
+
 
 \ Block file I/O
 
@@ -20,13 +32,14 @@ block0 blk-area bl fill
 : open-blk ( addr u -- )  r/w open-file throw to blk-fd ;
 : read-blk ( -- ) block0 blk-area blk-fd read-file throw ;
 : write-blk ( -- ) block0 blk-area blk-fd write-file throw ;
-: close-blk ( -- ) blk-fd close-file throw ;
+: close-blk ( -- ) blk-fd close-file throw -1 to blk-fd ;
 
 s" data.blk" open-blk read-blk cr cr . cr cr
 
-block0 144 + 42 swap !
+: wb ( -- ) \ write blocks 
+  write-blk close-blk 
+  bye ;
 
-write-blk
-close-blk
 
-
+42
+3 block 5 line 16 + b!
