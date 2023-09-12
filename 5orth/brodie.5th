@@ -29,7 +29,7 @@ separ cr cr
   do i let loop ;
 
 
-11 4  enum e1 e2
+11 2  enum e1 e2
 e1 . e2 .
 
 separ
@@ -39,5 +39,5 @@ separ
 
 : .* 42 emit ;
 
-' .* 77 times
+' .* 777 times
 separ
