@@ -1,0 +1,32 @@
+\ ************
+\ Block editor
+\ ************
+
+\ Blocks
+
+: let constant ;
+
+1024 let blk
+1024 let blks
+blk blks * let blk-area
+
+create block0 blk-area allot
+block0 blk-area bl fill
+
+\ Block file I/O
+
+0 value blk-fd
+
+: open-blk ( addr u -- )  r/w open-file throw to blk-fd ;
+: read-blk ( -- ) block0 blk-area blk-fd read-file throw ;
+: write-blk ( -- ) block0 blk-area blk-fd write-file throw ;
+: close-blk ( -- ) blk-fd close-file throw ;
+
+s" data.blk" open-blk read-blk cr cr . cr cr
+
+block0 144 + 42 swap !
+
+write-blk
+close-blk
+
+
