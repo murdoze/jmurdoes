@@ -29,9 +29,15 @@ separ cr cr
   do i let loop ;
 
 
-11 3  enum e1 e2 e3
-e1 . e2 . e3 .
+11 4  enum e1 e2
+e1 . e2 .
 
 separ
 
+: times ( xt n -- )
+    0 do dup execute loop ;
 
+: .* 42 emit ;
+
+' .* 77 times
+separ
