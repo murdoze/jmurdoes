@@ -1,0 +1,45 @@
+: yield1 r> r> swap >r >r ;
+: yield2 r> r> r> rot >r >r >r ;
+: yield3 r> r> r> r> 3 roll >r >r >r >r ;
+
+: ncompile, ( xt n -- ) 0 do dup compile, loop drop ;
+
+: yield4 [ 4 ' r> over  ncompile, dup ] literal roll [ ' >r over  ncompile,  drop ] ;
+
+: nyield, ( n -- ) 1+ ['] r> over ncompile, dup 1- postpone literal postpone roll ['] >r over ncompile, drop ; immediate
+
+: yield5 [ 5 ] nyield, ;
+: yield6 [ 6 ] nyield, ;
+: yield7 [ 7 ] nyield, ;
+
+: yield 
+; immediate
+
+: producer begin 100 + dup yield1 again ;
+
+: consumer
+cr
+0 producer
+begin
+dup . cr
+1000 < while
+yield1
+repeat
+drop ." done! " r> drop ;
+
+\ =========================
+: producer+ yield1 begin [char] + emit yield3 again ;
+: producer* yield1 begin [char] * emit yield3 again ;
+: producer$ yield1 begin [char] $ emit yield3 again ;
+
+: consumer2
+cr
+producer+ producer* producer$   
+0
+begin
+1+ dup 10 < while
+dup . yield1
+repeat
+drop  ." done! " 
+r> drop r> drop r> drop ;
+

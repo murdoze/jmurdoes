@@ -1,0 +1,147 @@
+\ Local vocabularies
+
+\ At creating stage, saves the context vocabuary
+\ At execution, switches 
+
+
+forth
+
+context @
+vocabulary (a)
+: a also (a) ;
+a definitions
+
+
+
+: a1  also [ dup literal ]  context ! ." a1 " previous ;
+: aa1 ." a1 " previous ;
+
+drop
+
+context @
+vocabulary (b)
+: b also (b) ;
+b definitions
+
+: b1  also [ dup literal ] context ! a1 ." b1 " previous ;
+: bb1  aa1 ." b1 " previous ;
+
+drop
+
+
+context @
+vocabulary (c)
+: c also (c) ;
+c definitions
+
+: c1 also [ dup literal ] context ! b1 ." c1 " previous ;
+: cc1 bb1 ." c1 " previous ;
+
+drop
+
+previous definitions \ exit c
+
+previous definitions \ exit b
+
+previous definitions \ exit a
+
+\ =========================================================================================
+
+: struct ( "name" -- )
+  create 
+    0 ,              \ struct size 
+;
+
+: !struct ( struct -- ) \ allocate structure
+  @ allot
+;
+
+: 0!struct ( struct -- ) \ allocate structure and initialize it with zeros
+  here over @ ( -- struct here size )
+  0 fill      ( -- struct )
+  !struct
+;  
+
+: +field ( struct field-size "name" -- )
+  create  
+    over @      ( -- struct field-size struct-size ) 
+    dup ,       ( -- struct field-size struct-size ) \ field returns its offset
+    +           ( -- struct new-struct-size )
+    swap !      ( -- ) \ update structure size
+  does>         ( struct-address -- struct-field-address )
+    @           ( -- struct-address field-offset )  
+    +           ( - struct-field-address )
+;      
+
+: field cell +field ; 
+
+\ Tests
+
+\ vocabulary a
+\ also a definitions
+struct a
+  a field x
+  a field y
+
+create a1 a 0!struct
+
+cr .( a1 structure testsi 1/2 ) cr
+  a1 x ?
+  a1 y ?
+
+  111 a1 x !
+  222 a1 y !
+
+  a1 x ?
+  a1 y ?
+
+
+\ //? previous
+
+\ vocabulary b
+\ also b definitions
+struct b
+  b field y
+  b field x
+
+create b1 b 0!struct
+
+cr .( a1 structure tests 2/2 ) cr
+  a1 x ?
+  a1 y ?
+
+
+cr .( b1 structure tests ) cr
+  b1 x ?
+  b1 y ?
+
+  9111 b1 x !
+  9222 b1 y !
+
+  b1 x ?
+  b1 y ?
+
+
+struct section
+  section field size
+  section field offset
+  section a @ +field section-a
+
+
+create .text section 0!struct
+
+cr .( .section structure tests ) cr
+
+.text size ?
+.text offset ?
+.text section-a x ?
+.text section-a y ?
+
+100500 .text section-a x !
+200900 .text section-a y !
+
+.text section-a x ?
+.text section-a y ?
+
+
+

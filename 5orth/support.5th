@@ -1,0 +1,86 @@
+\ Support definitions
+forth
+
+marker forget
+
+\ \ vocabulary 5orth
+\ \ also 5orth definitions
+
+: struct ( "name" -- )
+  create 
+    0 ,              \ struct size 
+;
+
+: !struct ( struct -- ) \ allocate structure
+  @ allot
+;
+
+: 0!struct ( struct -- ) \ allocate structure and initialize it with zeros
+  here over @ ( -- struct here size )
+  0 fill      ( -- struct )
+  !struct
+; 
+
+: +field ( struct field-size "name" -- )
+  create  
+    over @      ( -- struct field-size struct-size ) 
+    dup ,       ( -- struct field-size struct-size ) \ field returns its offset
+    +           ( -- struct new-struct-size )
+    swap !      ( -- ) \ update structure size
+  does>         ( struct-address -- struct-field-address )
+    @           ( -- struct-address field-offset )  
+    +           ( - struct-field-address )
+;      
+
+: field cell +field ; 
+
+\ Tests
+
+struct a
+  a cell +field a.1
+  a field a.2
+  a field a-x
+  a field a-y
+
+struct b
+  b field b.1
+  b field b.2
+  b field b-y
+  b field b-x
+
+create a1 a 0!struct
+
+cr .( a1 structure tests ) cr
+  a1 a.1 ?
+  a1 a.2 ?
+
+  111 a1 a.1 !
+  222 a1 a.2 !
+
+  a1 a.1 ?
+  a1 a.2 ?
+
+
+struct section
+  section field section-size
+  section field section-offset
+  section a @ +field section-a
+
+
+create .text section 0!struct
+
+cr .( .section structure tests ) cr
+
+.text section-size ?
+.text section-offset ?
+.text section-a a.1 ?
+.text section-a a.2 ?
+
+100500 .text section-a a.1 !
+200900 .text section-a a.2 !
+
+.text section-a a.1 ?
+.text section-a a.2 ?
+
+
+

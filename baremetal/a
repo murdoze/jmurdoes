@@ -1,0 +1,2 @@
+as -g -o main.o main.asm
+ld --oformat binary -o main.img -T link.ld main.o

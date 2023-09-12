@@ -1,0 +1,47 @@
+( – – c-addr u )decimal
+: [postpone] postpone postpone ; immediate
+: esc[emit 27 emit [char] [ emit ;
+: esc[type esc[emit type ;
+: esc[     32 parse [postpone] sliteral [postpone] esc[type ; immediate
+
+: home     esc[ H ;    : clear    esc[ 2J ;
+: curson   esc[ ?25h ; : cursoff  esc[ ?25l ;
+: norm     esc[ 0m ;   : bold     esc[ 1m ;   : reverse  esc[ 7m ;
+: black    esc[ 30m ;  : red      esc[ 31m ;  : green    esc[ 32m ;
+: yellow   esc[ 33m ;  : blue     esc[ 34m ;  : magenta  esc[ 35m ;
+: cyan     esc[ 36m ;  : white    esc[ 37m ;
+
+: cursor?  esc[ 6n ;
+: save     27 emit [char] 7 emit ;
+: restore  27 emit [char] 8 emit ;
+: down     esc[ 1B ;
+: ri       27 emit [char] M emit ;
+: margins  esc[ 64;1"p esc[ ?69h ;
+
+: dig 10 /mod  ;
+: digit dup 9 > if 7 + then [char] 0 + ; 
+: .3digits dig dig dig drop digit emit digit emit digit emit ;
+: at ( x y -- ) esc[emit .3digits [char] ; emit .3digits [char] H emit ;
+: scroll ( bot top -- ) esc[emit .3digits [char] ; emit .3digits [char] r emit ; 
+: scrollw ( r l -- ) esc[emit .3digits [char] ; emit .3digits [char] s emit ; 
+: at?
+      cursor?
+      key drop key drop ( skip ESC[ )
+      0 begin key dup [char] ; <> while [char] 0 - + 10 * repeat drop 10 /
+      0 begin key dup [char] R <> while [char] 0 - + 10 * repeat drop 10 / 
+      swap ;
+
+: wline ( w -- ) spaces ;
+: win ( w h -- ) 0 do save dup wline restore down loop drop ; 
+
+: b-top ( w -- ) tl uemit 0 do hh uemit loop tr uemit ;
+: b-line ( w -- ) vv uemit spaces vv uemit ;
+: b-lines ( w h -- ) 0 do save dup b-line restore down loop ;
+: b-bottom ( w -- ) bl uemit 0 do hh uemit loop br uemit ;
+: b-win ( w h -- ) 
+  over 
+  save b-top restore down
+  b-lines
+  save b-bottom restore ;
+
+clear 41 21 at 50 20 red reverse win 40 20 at 50 20 yellow reverse b-win  norm white home
