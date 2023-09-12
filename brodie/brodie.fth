@@ -24,15 +24,14 @@ star emit
 separ cr cr
 separ cr cr
 
-
 : enum ( start count n*"name" -- )
   over + swap
   do i let loop ;
 
 
-1 3  enum e1 e2 e3
+11 3  enum e1 e2 e3
 e1 . e2 . e3 .
 
 separ
-separ
+
 
