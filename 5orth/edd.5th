@@ -85,57 +85,51 @@ require colors.5th
 ;
 
 : cursor-left
-  ." Left"
   -1 edd-col +!
 ;
 
 : cursor-right
-  ." Right"
   1 edd-col +!
+;
+
+: cursor-up
+  -1 edd-row +!
+;
+
+: cursor-down
+  1 edd-row +!
 ;
 
 create edd-actions
   char Q , ' edd-quit ,
-  0      , 
   char h , ' cursor-left ,
   char l , ' cursor-right ,
+  char j , ' cursor-down ,
+  char k , ' cursor-up ,
   0      , 
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \ : .s ;
 
 : edd-process ( key -- )
-  cr cr clear
-
-
   edd-actions
   begin				( key ea --)
-    yellow .s cr norm
     dup @ dup
-    white .s cr norm
     0= 
     if 
       drop drop drop 
-        green cr ." LEAVE" norm 
       exit 
     then      ( key ea ch -- )
-    green .s cr norm
-
 
     rot dup rot
-    white .s cr norm
-
 
     = if ( ea key -- )
-      red ." EXECUTE! " norm cr
       drop cell + @ 
       execute     ( ea+cell -- )
       exit
     else
-      blue .s cr norm
       swap
       cell + cell + 
-      blue .s cr norm
     then
   again
 ;
@@ -149,5 +143,6 @@ create edd-actions
 ;
 
 clear
+0 block .screen
 edd
 
