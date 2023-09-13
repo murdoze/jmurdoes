@@ -103,9 +103,13 @@ require colors.5th
 create edd-actions
   char Q , ' edd-quit ,
   char h , ' cursor-left ,
+  char D , ' cursor-left ,
   char l , ' cursor-right ,
+  char C , ' cursor-right ,
   char j , ' cursor-down ,
+  char B , ' cursor-down ,
   char k , ' cursor-up ,
+  char A , ' cursor-up ,
   0      , 
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -117,7 +121,7 @@ create edd-actions
     dup @ dup
     0= 
     if 
-      drop drop drop 
+      drop drop drop
       exit 
     then      ( key ea ch -- )
 
@@ -126,6 +130,7 @@ create edd-actions
     = if ( ea key -- )
       drop cell + @ 
       execute     ( ea+cell -- )
+      drop drop drop
       exit
     else
       swap
@@ -134,10 +139,25 @@ create edd-actions
   again
 ;
 
+: show-key
+  dup 
+  5 5 at yellow emit bl emit green  . norm 
+;
+: show-stack
+  ( 5 1 at ) white .s norm 
+;
+
+: show-block
+  .screen
+;
+
 : edd
   begin
+    \ show-stack    
+    show-block    
     cursor-show
     key 
+    \ show-key 
     edd-process 
   again
 ;
