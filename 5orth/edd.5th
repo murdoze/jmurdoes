@@ -17,7 +17,7 @@ blks# blk-size * let blk-area
 
 create block0 blk-area allot
 block0 blk-area bl fill
-0 var current-blk
+block0 var current-blk
 
 : block ( n -- a ) blk-size * block0 + current-blk ! ;
 : line ( n -- n*line-len ) line-size * ;
@@ -41,28 +41,10 @@ s" data.blk" open-blk read-blk cr cr . cr cr
   write-blk close-blk 
   bye ;
 
-\ Sample usage
-
-42
-3 block 5 line 16 + b!
-
-
-: .screen ( -- )
-  current-blk @
-  cr
-  lines-in-block 0 do
-    i 9 <= if bl emit then
-    i . dup line-size 1- type
-    [char] | emit cr
-    line-size +
-  loop
-  cr
-;
+\ Screen eddittor
 
 require unicode.5th
 require colors.5th
-
-\ clear 41 21 at 50 20 red reverse win 40 20 at 50 20 yellow reverse b-win  norm white home
 
 40 var edd-x
 5 var edd-y
@@ -82,6 +64,46 @@ require colors.5th
     line-size +
   loop
   cr
+;
+
+\ Eddittor Edd
+
+0 var edd-row
+0 var edd-col
+
+: cursor-show
+    edd-row @ edd-y @ +
+    edd-col @ edd-x @ +
+    swap at
+;
+
+\ Eddittor Actions
+
+: edd-quit 
+  r> drop ;
+
+: cursor-left
+  -1 edd-col +!
+;
+
+: cursor-right
+  1 edd-col +!
+;
+
+create edd-actions
+  char Q , ' edd-quit ,
+
+
+
+: edd
+  begin
+    cursor-show
+    key 
+    dup [char] Q = if drop exit then
+    dup [char] h = if drop cursor-left then
+    dup [char] l = if drop cursor-right then
+    
+  again
 ;
 
 
