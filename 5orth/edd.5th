@@ -12,6 +12,7 @@
 1024 let blks#
 1024 let blk-size
 64 let line-size
+blk-size line-size / let lines-in-block
 blks# blk-size * let blk-area
 
 create block0 blk-area allot
@@ -40,6 +41,47 @@ s" data.blk" open-blk read-blk cr cr . cr cr
   write-blk close-blk 
   bye ;
 
+\ Sample usage
 
 42
 3 block 5 line 16 + b!
+
+
+: .screen ( -- )
+  current-blk @
+  cr
+  lines-in-block 0 do
+    i 9 <= if bl emit then
+    i . dup line-size 1- type
+    [char] | emit cr
+    line-size +
+  loop
+  cr
+;
+
+require unicode.5th
+require colors.5th
+
+\ clear 41 21 at 50 20 red reverse win 40 20 at 50 20 yellow reverse b-win  norm white home
+
+40 var edd-x
+5 var edd-y
+
+: .screen ( -- )
+  edd-x @ edd-y @  at 
+  line-size 2 + lines-in-block yellow reverse b-win
+  norm white home
+
+  current-blk @
+  cr
+  lines-in-block 0 do
+    edd-x @ 1+ edd-y @ 1+ i + at
+    i green hex . decimal norm
+    dup line-size 1- type 
+    green [char] | emit norm 
+    line-size +
+  loop
+  cr
+;
+
+

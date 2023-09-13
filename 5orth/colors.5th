@@ -1,4 +1,5 @@
-( – – c-addr u )decimal
+( – – c-addr u ) 
+decimal
 : [postpone] postpone postpone ; immediate
 : esc[emit 27 emit [char] [ emit ;
 : esc[type esc[emit type ;
@@ -44,4 +45,4 @@
   b-lines
   save b-bottom restore ;
 
-clear 41 21 at 50 20 red reverse win 40 20 at 50 20 yellow reverse b-win  norm white home
+\ clear 41 21 at 50 20 red reverse win 40 20 at 50 20 yellow reverse b-win  norm white home
