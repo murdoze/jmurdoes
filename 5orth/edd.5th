@@ -92,18 +92,52 @@ require colors.5th
 
 create edd-actions
   char Q , ' edd-quit ,
+  char h , ' cursor-left ,
+  char l , ' cursor-right ,
+  0      , 
 
+: edd-process ( key -- )
+  edd-actions
+  cr cr
+  begin				( key ea --)
+    yellow .s cr norm
+    dup @ 
+    white .s cr norm
+    rot dup
+    red .s cr norm
+    0= 
+    if leave then      ( key ea ch -- )
+    over over
+    green .s cr norm
+    key drop
 
+    = if ( ea key -- )
+      red ." EXECUTE! " norm cr
+      drop cell + @ 
+      execute     ( ea+cell -- )
+      leave
+    else
+      swap drop swap
+      blue .s cr norm
+      cell + cell + 
+      blue .s cr norm
+    then
+  again
+;
+
+\ Y <2> 49 140167513520872 
+\ W <3> 49 140167513520872 81 
+\ W <4> 140167513520872 49 49 81 
+\ G <3> 140167513520872 49 49
 
 : edd
   begin
     cursor-show
     key 
-    dup [char] Q = if drop exit then
-    dup [char] h = if drop cursor-left then
-    dup [char] l = if drop cursor-right then
-    
+    edd-process 
   again
 ;
 
+clear
+edd
 
