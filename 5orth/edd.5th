@@ -92,6 +92,7 @@ require colors.5th
 
 create edd-actions
   char Q , ' edd-quit ,
+  0      , 
   char h , ' cursor-left ,
   char l , ' cursor-right ,
   0      , 
@@ -100,16 +101,19 @@ create edd-actions
   edd-actions
   cr cr
   begin				( key ea --)
+." -------------------------------- "
+      key drop
     yellow .s cr norm
-    dup @ 
+    dup @ dup
     white .s cr norm
-    rot dup
-    red .s cr norm
     0= 
-    if leave then      ( key ea ch -- )
-    over over
+    if green cr ." LEAVE" norm exit then      ( key ea ch -- )
     green .s cr norm
-    key drop
+
+
+    rot dup rot
+    white .s cr norm
+
 
     = if ( ea key -- )
       red ." EXECUTE! " norm cr
@@ -117,8 +121,8 @@ create edd-actions
       execute     ( ea+cell -- )
       leave
     else
-      swap drop swap
       blue .s cr norm
+      swap
       cell + cell + 
       blue .s cr norm
     then
