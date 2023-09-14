@@ -7,6 +7,13 @@
 : let constant ;
 : var ( v "name" -- ) create , does> ;
 
+: enum ( start count count*"name" -- )
+  over + swap
+  do i let loop ;
+
+1 3 enum Normal Insert Replace
+Normal var mode
+
 \ Blocks
 
 1024 let blks#
@@ -101,6 +108,24 @@ require colors.5th
   1 edd-row +!
 ;
 
+: cursor-first-col
+  1 edd-col !
+;
+ 
+: cursor-last-col
+   line-size edd-col !
+;
+ 
+: cursor-home
+   1 edd-col !
+   1 edd-row !
+;
+ 
+: cursor-unhome
+   1 edd-col !
+   lines-in-block edd-row !
+;
+ 
 create edd-actions
   char Q , ' edd-quit ,
   char h , ' cursor-left ,
@@ -111,10 +136,11 @@ create edd-actions
   char B , ' cursor-down ,
   char k , ' cursor-up ,
   char A , ' cursor-up ,
+  char 0 , ' cursor-first-col ,
+  char ` , ' cursor-last-col ,
+  char H , ' cursor-home ,
+  char G , ' cursor-unhome ,
   0      , 
-
-\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-\ : .s ;
 
 : edd-process ( key -- )
   edd-actions
@@ -136,7 +162,6 @@ create edd-actions
       swap
       cell + cell + 
     then
-
   again
 ;
 
