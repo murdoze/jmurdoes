@@ -25,6 +25,7 @@ blks# blk-size * let blk-area
 create block0 blk-area allot
 block0 blk-area bl fill
 block0 var current-blk
+0 var blk
 
 : block ( n -- a ) blk-size * block0 + current-blk ! ;
 : line ( n -- n*line-len ) line-size * ;
@@ -125,11 +126,25 @@ require colors.5th
    0 edd-col !
    lines-in-block edd-row !
 ;
+
+: block-back
+  blk @ dup 0> if
+    1- dup blk ! block
+  then
+;  
+
+: block-forward
+  blk @ dup blks# < if
+    1+ dup blk ! block
+  then
+;  
  
 create edd-actions
   char Q , ' edd-quit ,
   char Z , ' edd-quit ,
   ( ^D)4 , ' edd-quit ,
+  char B , ' block-back ,
+  char F , ' block-forward ,
   char h , ' cursor-left ,
   char D , ' cursor-left ,
   char l , ' cursor-right ,
