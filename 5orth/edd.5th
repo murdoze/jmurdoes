@@ -57,15 +57,15 @@ require colors.5th
 5 var edd-y
 
 : .screen ( -- )
-  edd-x @ edd-y @  at 
-  line-size 2 + lines-in-block yellow reverse b-win
+  edd-x @ 1 - edd-y @  at 
+  line-size 0 + lines-in-block yellow reverse b-win
   norm white home
 
   current-blk @
   cr
   lines-in-block 0 do
-    edd-x @ 1+ edd-y @ 1+ i + at
-    i green hex . decimal norm
+    edd-x @   edd-y @ 1+ i + at
+    \ i green hex . decimal norm
     dup line-size 1- type 
     green [char] | emit norm 
     line-size +
@@ -76,7 +76,7 @@ require colors.5th
 
 \ Eddittor Edd
 
-0 var edd-row
+1 var edd-row
 0 var edd-col
 
 : show-cursor
@@ -109,7 +109,7 @@ require colors.5th
 ;
 
 : cursor-first-col
-  1 edd-col !
+  0 edd-col !
 ;
  
 : cursor-last-col
@@ -117,17 +117,19 @@ require colors.5th
 ;
  
 : cursor-home
-   1 edd-col !
-   1 edd-row !
+   0 edd-col !
+   0 edd-row !
 ;
  
 : cursor-unhome
-   1 edd-col !
+   0 edd-col !
    lines-in-block edd-row !
 ;
  
 create edd-actions
   char Q , ' edd-quit ,
+  char Z , ' edd-quit ,
+  ( ^D)4 , ' edd-quit ,
   char h , ' cursor-left ,
   char D , ' cursor-left ,
   char l , ' cursor-right ,
