@@ -97,7 +97,7 @@ s" data.blk" open-blk read-blk cr cr . cr cr
 : cursor-down        1 edd-row +!  bound-row-down ;
 : cursor-first-col   0 edd-col ! ;
 : cursor-last-col    line-size 2 - edd-col ! ;
-: cursor-home        0 edd-col !  0 edd-row ! ;
+: cursor-home        0 edd-col !  1 edd-row ! ;
 : cursor-unhome      0 edd-col !  lines-in-block edd-row ! ;
 
 : block-back
@@ -173,6 +173,7 @@ create normal-actions
 : insert-process ( c -- )
   dup   9 = if normal-mode exit then
   dup  13 = if normal-mode exit then
+  dup  16 = if exit then
   dup  27 = if exit then
   dup 127 = if backspace exit then
   dup latest-key c@ cursor-addr c!
@@ -204,7 +205,7 @@ create normal-actions
     green
       ." BLK# " blk @ . bold
     white
-      mode @ Normal = if ." -- NORMAL -- " else ." -- INSERT --" then
+      mode @ Normal = if ." -- NORMAL -- " else ." -- INSERT -- " then
     norm
 ;
 
