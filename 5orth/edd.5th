@@ -47,9 +47,7 @@ block0 var current-blk
 
 s" data.blk" open-blk read-blk cr cr . cr cr
 
-: wb ( -- ) \ write blocks 
-  write-blk close-blk 
-  bye ;
+: wb  write-blk close-blk ;
 
 \ Screen eddittor
 
@@ -83,72 +81,39 @@ s" data.blk" open-blk read-blk cr cr . cr cr
   edd-row @ 1- line-size  * edd-col @ + current-blk @ +
 ;
 
+: bound-row-up    edd-row @ 1 < if 1 edd-row ! then ;
+: bound-row-down  edd-row @ lines-in-block > if lines-in-block edd-row ! then ;
+: bound-col-left  edd-col @ 0 < if 0 edd-col ! then ;
+: bound-col-right edd-col @ line-size 2 - > if line-size 2 - edd-col ! then ;
+
 0 var latest-key
 
 \ Eddittor Actions
 
-: edd-quit 
-  ." Quit"
-  r> drop r> drop 
-;
-
-: cursor-left
-  -1 edd-col +!  
-;
-
-: cursor-right
-  1 edd-col +!  
-;
-
-: cursor-up
-  -1 edd-row +!  
-;
-
-: cursor-down
-  1 edd-row +!  
-;
-
-: cursor-first-col
-  0 edd-col !  
-;
- 
-: cursor-last-col
-   line-size edd-col !  
-;
- 
-: cursor-home
-   0 edd-col !
-   0 edd-row !  
-;
- 
-: cursor-unhome
-   0 edd-col !
-   lines-in-block edd-row !  
-;
+: edd-quit  r> drop r> drop ;
+: cursor-left       -1 edd-col +!  bound-col-left ;
+: cursor-right       1 edd-col +!  bound-col-right ;
+: cursor-up         -1 edd-row +!  bound-row-up ;
+: cursor-down        1 edd-row +!  bound-row-down ;
+: cursor-first-col   0 edd-col ! ;
+: cursor-last-col    line-size 2 - edd-col ! ;
+: cursor-home        0 edd-col !  0 edd-row ! ;
+: cursor-unhome      0 edd-col !  lines-in-block edd-row ! ;
 
 : block-back
   blk @ dup 0> if
     1- dup blk ! block
-  then 
-;  
+  then ;  
 
 : block-forward
   blk @ dup blks# 1- < if
     1+ dup blk ! block
-  then 
-;  
+  then ;  
 
-: insert-mode
-  Insert mode !  
-;
+: insert-mode Insert mode ! ;
 
 : normal-mode
-  mode @ Normal = if
-    Insert mode !
-  else
-    Normal mode !  
-  then
-;
+  mode @ Normal = if Insert else Normal then mode ! ;
 
 : replace-char
 ;
@@ -240,8 +205,6 @@ create normal-actions
       ." BLK# " blk @ . bold
     white
       mode @ Normal = if ." -- NORMAL -- " else ." -- INSERT --" then
-    yellow
-      current-blk @ . 
     norm
 ;
 
