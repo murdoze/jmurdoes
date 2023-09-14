@@ -63,6 +63,7 @@ require colors.5th
     green [char] | emit norm 
     line-size +
   loop
+  drop
   cr
 ;
 
@@ -71,7 +72,7 @@ require colors.5th
 0 var edd-row
 0 var edd-col
 
-: cursor-show
+: show-cursor
     edd-row @ edd-y @ +
     edd-col @ edd-x @ +
     swap at
@@ -117,25 +118,25 @@ create edd-actions
 
 : edd-process ( key -- )
   edd-actions
-  begin				( key ea --)
-    dup @ dup
-    0= 
+  begin		                     ( key ea --)
+    dup @ dup                        ( key ea c c -- )
+    0=                               ( key ea c f -- )
     if 
-      drop drop drop
+      drop drop drop                 ( -- )
       exit 
-    then      ( key ea ch -- )
-
-    rot dup rot
-
+    then      
+                                     ( key ea c -- )
+    rot swap over                    ( c key key ea -- ) 
+      
     = if ( ea key -- )
       drop cell + @ 
       execute     ( ea+cell -- )
-      drop drop drop
       exit
     else
       swap
       cell + cell + 
     then
+
   again
 ;
 
@@ -155,10 +156,11 @@ create edd-actions
   begin
     \ show-stack    
     show-block    
-    cursor-show
+    show-cursor
     key 
     \ show-key 
     edd-process 
+    show-cursor
   again
 ;
 
