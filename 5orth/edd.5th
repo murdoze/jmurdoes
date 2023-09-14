@@ -83,6 +83,8 @@ s" data.blk" open-blk read-blk cr cr . cr cr
   edd-row @ 1- line-size  * edd-col @ + current-blk @ +
 ;
 
+0 var latest-key
+
 \ Eddittor Actions
 
 : edd-quit 
@@ -206,8 +208,10 @@ create normal-actions
 : insert-process ( c -- )
   dup   9 = if normal-mode exit then
   dup 127 = if backspace exit then
-  dup [char] * cursor-addr c!
-  dup 
+  dup latest-key c@ cursor-addr c!
+
+  edd-col @ line-size 1- = if
+  else 1 edd-col +! then  
 ;
 
 : show-cursor
@@ -245,7 +249,7 @@ create normal-actions
     show-block
     show-status
     show-cursor
-    key
+    key dup latest-key c!
     mode @ Normal = if 
       normal-process 
     else
