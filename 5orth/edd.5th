@@ -16,7 +16,8 @@ Normal var mode
 
 \ Blocks
 
-1024 let blks#
+\ 1024 let blks#
+8 let blks#
 1024 let blk-size
 64 let line-size
 blk-size line-size / let lines-in-block
@@ -120,7 +121,7 @@ require colors.5th
   then ;  
 
 : block-forward
-  blk @ dup blks# < if
+  blk @ dup blks# 1- < if
     1+ dup blk ! block
   then ;  
 
