@@ -2,6 +2,11 @@
 \ Block editor
 \ ************
 
+\ Imports
+
+require unicode.5th
+require colors.5th
+
 \ Shortcuts
 
 : let constant ;
@@ -25,7 +30,7 @@ blks# blk-size * let blk-area
 
 create block0 blk-area allot
 block0 blk-area bl fill
-block0 var current-blk
+block0 var current-blk 
 0 var blk
 
 : block ( n -- a ) dup blk ! blk-size * block0 + current-blk ! ;
@@ -47,9 +52,6 @@ s" data.blk" open-blk read-blk cr cr . cr cr
   bye ;
 
 \ Screen eddittor
-
-require unicode.5th
-require colors.5th
 
 40 var edd-x
 5 var edd-y
@@ -77,66 +79,89 @@ require colors.5th
 1 var edd-row
 0 var edd-col
 
-: show-cursor
-    edd-row @ edd-y @ +
-    edd-col @ edd-x @ +
-    swap at
+: cursor-addr ( -- a )
+  edd-row @ 1- line-size  * edd-col @ + current-blk @ +
 ;
 
 \ Eddittor Actions
 
 : edd-quit 
   ." Quit"
-  r> drop r> drop ;
+  r> drop r> drop 
+;
 
 : cursor-left
-  -1 edd-col +!  ;
+  -1 edd-col +!  
+;
 
 : cursor-right
-  1 edd-col +!  ;
+  1 edd-col +!  
+;
 
 : cursor-up
-  -1 edd-row +!  ;
+  -1 edd-row +!  
+;
 
 : cursor-down
-  1 edd-row +!  ;
+  1 edd-row +!  
+;
 
 : cursor-first-col
-  0 edd-col !  ;
+  0 edd-col !  
+;
  
 : cursor-last-col
-   line-size edd-col !  ;
+   line-size edd-col !  
+;
  
 : cursor-home
    0 edd-col !
-   0 edd-row !  ;
+   0 edd-row !  
+;
  
 : cursor-unhome
    0 edd-col !
-   lines-in-block edd-row !  ;
+   lines-in-block edd-row !  
+;
 
 : block-back
   blk @ dup 0> if
     1- dup blk ! block
-  then ;  
+  then 
+;  
 
 : block-forward
   blk @ dup blks# 1- < if
     1+ dup blk ! block
-  then ;  
+  then 
+;  
 
 : insert-mode
-\  Insert mode !  
+  Insert mode !  
 ;
 
 : normal-mode
-  Normal mode !  ;
+  mode @ Normal = if
+    Insert mode !
+  else
+    Normal mode !  
+  then
+;
+
+: replace-char
+;
+
+: insert-char 
+;
+
+: backspace
+;
  
-create edd-actions
+create normal-actions
   char Q , ' edd-quit ,
   char Z , ' edd-quit ,
   ( ^D)4 , ' edd-quit ,
-  char B , ' block-back ,
+  char G , ' block-back ,
   char F , ' block-forward ,
   char h , ' cursor-left ,
   char D , ' cursor-left ,
@@ -152,10 +177,11 @@ create edd-actions
   char G , ' cursor-unhome ,
   char i , ' insert-mode ,
        9 , ' normal-mode ,
-  0      , 
+  \ ------
+       0 , 
 
 : normal-process ( key -- )
-  edd-actions
+  normal-actions
   begin		                     ( key ea --)
     dup @ dup                        ( key ea c c -- )
     0=                               ( key ea c f -- )
@@ -177,9 +203,17 @@ create edd-actions
   again
 ;
 
-: char-process ( c -- )
+: insert-process ( c -- )
+  dup   9 = if normal-mode exit then
+  dup 127 = if backspace exit then
+  dup [char] * cursor-addr c!
   dup 
-  5 5 at yellow emit bl emit green  . norm 
+;
+
+: show-cursor
+    edd-row @ edd-y @ +
+    edd-col @ edd-x @ +
+    swap at
 ;
 
 : show-key
@@ -196,9 +230,13 @@ create edd-actions
 
 : show-status
     edd-x @ 1 + edd-y @ at
-    white 
-    blk @ .
-    mode @ Normal = if ." -- NORMAL -- " else ." -- INSERT --" then
+    green
+      ." BLK# " blk @ . bold
+    white
+      mode @ Normal = if ." -- NORMAL -- " else ." -- INSERT --" then
+    yellow
+      current-blk @ . 
+    norm
 ;
 
 : edd
@@ -211,7 +249,7 @@ create edd-actions
     mode @ Normal = if 
       normal-process 
     else
-      char-process
+      insert-process
     then
     show-cursor
   again
