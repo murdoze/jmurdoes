@@ -111,9 +111,7 @@ s" data.blk" open-blk read-blk cr cr . cr cr
   then ;  
 
 : insert-mode Insert mode ! ;
-
-: normal-mode
-  mode @ Normal = if Insert else Normal then mode ! ;
+: normal-mode  mode @ Normal = if Insert else Normal then mode ! ;
 
 : replace-char
 ;
@@ -125,27 +123,27 @@ s" data.blk" open-blk read-blk cr cr . cr cr
 ;
  
 create normal-actions
-  char Q , ' edd-quit ,
-  char Z , ' edd-quit ,
-  ( ^D)4 , ' edd-quit ,
-  char G , ' block-back ,
-  char F , ' block-forward ,
-  char h , ' cursor-left ,
-  char D , ' cursor-left ,
-  char l , ' cursor-right ,
-  char C , ' cursor-right ,
-  char j , ' cursor-down ,
-  char B , ' cursor-down ,
-  char k , ' cursor-up ,
-  char A , ' cursor-up ,
-  char 0 , ' cursor-first-col ,
-  char ` , ' cursor-last-col ,
-  char H , ' cursor-home ,
-  char G , ' cursor-unhome ,
-  char i , ' insert-mode ,
-       9 , ' normal-mode ,
+  char  Q , ' edd-quit ,
+  char  Z , ' edd-quit ,
+  ( ^D) 4 , ' edd-quit ,
+  char  G , ' block-back ,
+  char  F , ' block-forward ,
+  char  h , ' cursor-left ,
+  char  D , ' cursor-left ,
+  char  l , ' cursor-right ,
+  char  C , ' cursor-right ,
+  char  j , ' cursor-down ,
+  char  B , ' cursor-down ,
+  char  k , ' cursor-up ,
+  char  A , ' cursor-up ,
+  char  0 , ' cursor-first-col ,
+  char  ` , ' cursor-last-col ,
+  char  H , ' cursor-home ,
+  char  G , ' cursor-unhome ,
+  char  i , ' insert-mode ,
+  ( TAB)9 , ' normal-mode ,
   \ ------
-       0 , 
+        0 , 
 
 : normal-process ( key -- )
   normal-actions
