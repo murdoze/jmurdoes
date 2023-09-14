@@ -27,12 +27,8 @@ block0 blk-area bl fill
 block0 var current-blk
 0 var blk
 
-: block ( n -- a ) blk-size * block0 + current-blk ! ;
-: line ( n -- n*line-len ) line-size * ;
-
-: b! ( c a -- ) \ sets character at given offset relative to current block
-  current-blk + c! ;
-
+: block ( n -- a ) dup blk ! blk-size * block0 + current-blk ! ;
+: line ( n -- n*line-size ) line-size * ;
 
 \ Block file I/O
 
@@ -90,54 +86,50 @@ require colors.5th
 
 : edd-quit 
   ." Quit"
-  r> drop r> drop 
-;
+  r> drop r> drop ;
 
 : cursor-left
-  -1 edd-col +!
-;
+  -1 edd-col +!  ;
 
 : cursor-right
-  1 edd-col +!
-;
+  1 edd-col +!  ;
 
 : cursor-up
-  -1 edd-row +!
-;
+  -1 edd-row +!  ;
 
 : cursor-down
-  1 edd-row +!
-;
+  1 edd-row +!  ;
 
 : cursor-first-col
-  0 edd-col !
-;
+  0 edd-col !  ;
  
 : cursor-last-col
-   line-size edd-col !
-;
+   line-size edd-col !  ;
  
 : cursor-home
    0 edd-col !
-   0 edd-row !
-;
+   0 edd-row !  ;
  
 : cursor-unhome
    0 edd-col !
-   lines-in-block edd-row !
-;
+   lines-in-block edd-row !  ;
 
 : block-back
   blk @ dup 0> if
     1- dup blk ! block
-  then
-;  
+  then ;  
 
 : block-forward
   blk @ dup blks# < if
     1+ dup blk ! block
-  then
-;  
+  then ;  
+
+: insert-mode
+\  Insert mode !  
+;
+
+: normal-mode
+  Normal mode !  ;
  
 create edd-actions
   char Q , ' edd-quit ,
@@ -157,9 +149,11 @@ create edd-actions
   char ` , ' cursor-last-col ,
   char H , ' cursor-home ,
   char G , ' cursor-unhome ,
+  char i , ' insert-mode ,
+       9 , ' normal-mode ,
   0      , 
 
-: edd-process ( key -- )
+: normal-process ( key -- )
   edd-actions
   begin		                     ( key ea --)
     dup @ dup                        ( key ea c c -- )
@@ -182,6 +176,11 @@ create edd-actions
   again
 ;
 
+: char-process ( c -- )
+  dup 
+  5 5 at yellow emit bl emit green  . norm 
+;
+
 : show-key
   dup 
   5 5 at yellow emit bl emit green  . norm 
@@ -194,14 +193,25 @@ create edd-actions
   .screen
 ;
 
+: show-status
+    edd-x @ 1 + edd-y @ at
+    white 
+    blk @ .
+    mode @ Normal = if ." -- NORMAL -- " else ." -- INSERT --" then
+;
+
 : edd
   begin
     \ show-stack    
-    show-block    
+    show-block
+    show-status
     show-cursor
-    key 
-    \ show-key 
-    edd-process 
+    key
+    mode @ Normal = if 
+      normal-process 
+    else
+      char-process
+    then
     show-cursor
   again
 ;
