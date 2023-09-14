@@ -58,7 +58,7 @@ s" data.blk" open-blk read-blk cr cr . cr cr
 
 : .screen ( -- )
   edd-x @ 1 - edd-y @  at 
-  line-size 0 + lines-in-block yellow reverse b-win
+  line-size 0 + lines-in-block yellow ( reverse ) b-win
   norm white home
 
   current-blk @
@@ -207,6 +207,8 @@ create normal-actions
 
 : insert-process ( c -- )
   dup   9 = if normal-mode exit then
+  dup  13 = if normal-mode exit then
+  dup  27 = if exit then
   dup 127 = if backspace exit then
   dup latest-key c@ cursor-addr c!
 
