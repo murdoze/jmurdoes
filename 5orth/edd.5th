@@ -42,6 +42,7 @@ block0 var current-blk
 
 : open-blk ( addr u -- )  r/w open-file throw to blk-fd ;
 : read-blk ( -- ) block0 blk-area blk-fd read-file throw ;
+: seek-blk0 ( -- ) 0 blk-fd reposition-file throw ;
 : write-blk ( -- ) block0 blk-area blk-fd write-file throw ;
 : close-blk ( -- ) blk-fd close-file throw -1 to blk-fd ;
 
@@ -51,7 +52,7 @@ s" data.blk" open-blk read-blk cr cr . cr cr
 
 \ Screen eddittor
 
-40 var edd-x
+5 var edd-x
 5 var edd-y
 
 : .screen ( -- )
@@ -90,7 +91,8 @@ s" data.blk" open-blk read-blk cr cr . cr cr
 
 \ Eddittor Actions
 
-: edd-quit  r> drop r> drop ;
+: edd-quit           r> drop r> drop ;
+: edd-save-quit      seek-blk0 write-blk r> drop r> drop ;
 : cursor-left       -1 edd-col +!  bound-col-left ;
 : cursor-right       1 edd-col +!  bound-col-right ;
 : cursor-up         -1 edd-row +!  bound-row-up ;
@@ -124,7 +126,7 @@ s" data.blk" open-blk read-blk cr cr . cr cr
  
 create normal-actions
   char  Q , ' edd-quit ,
-  char  Z , ' edd-quit ,
+  char  Z , ' edd-save-quit ,
   ( ^D) 4 , ' edd-quit ,
   char  G , ' block-back ,
   char  F , ' block-forward ,
@@ -194,9 +196,7 @@ create normal-actions
   ( 5 1 at ) white .s norm 
 ;
 
-: show-block
-  .screen
-;
+: show-block .screen ;
 
 : show-status
     edd-x @ 1 + edd-y @ at
@@ -210,6 +210,7 @@ create normal-actions
 : edd
   begin
     \ show-stack    
+    save
     show-block
     show-status
     show-cursor
@@ -219,6 +220,7 @@ create normal-actions
     else
       insert-process
     then
+    restore
     show-cursor
   again
 ;
