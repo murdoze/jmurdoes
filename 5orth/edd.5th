@@ -30,10 +30,10 @@ blks# blk-size * let blk-area
 
 create block0 blk-area allot
 block0 blk-area bl fill
-block0 var current-blk 
+
 0 var blk
 
-: block ( n -- a ) dup blk ! blk-size * block0 + current-blk ! ;
+: block ( n -- a ) dup blk ! blk-size * block0 + ;
 : line ( n -- n*line-size ) line-size * ;
 
 \ Block file I/O
@@ -60,7 +60,7 @@ s" data.blk" open-blk read-blk cr cr . cr cr
   line-size 0 + lines-in-block yellow ( reverse ) b-win
   norm white home
 
-  current-blk @
+  blk @ block
   cr
   lines-in-block 0 do
     edd-x @   edd-y @ 1+ i + at
@@ -79,7 +79,7 @@ s" data.blk" open-blk read-blk cr cr . cr cr
 0 var edd-col
 
 : cursor-addr ( -- a )
-  edd-row @ 1- line-size  * edd-col @ + current-blk @ +
+  edd-row @ 1- line-size  * edd-col @ + blk @ block +
 ;
 
 : bound-row-up    edd-row @ 1 < if 1 edd-row ! then ;
