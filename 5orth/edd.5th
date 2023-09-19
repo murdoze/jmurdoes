@@ -23,9 +23,9 @@ Normal var mode
 
 \ 1024 let blks#
 8 let blks#
-1024 let blk-size
-64 let line-size
-blk-size line-size / let lines-in-block
+1025 let blk-size
+64 let cols#
+blk-size cols# / let lines#
 blks# blk-size * let blk-area
 
 create block0 blk-area allot
@@ -34,7 +34,7 @@ block0 blk-area bl fill
 0 var blk
 
 : block ( n -- a ) dup blk ! blk-size * block0 + ;
-: line ( n -- n*line-size ) line-size * ;
+: line ( n -- n*cols# ) cols# * ;
 
 \ Block file I/O
 
@@ -57,17 +57,17 @@ s" data.blk" open-blk read-blk cr cr . cr cr
 
 : .screen ( -- )
   edd-x @ 1 - edd-y @  at 
-  line-size 0 + lines-in-block yellow ( reverse ) b-win
+  cols# 0 + lines# yellow ( reverse ) b-win
   norm white home
 
   blk @ block
   cr
-  lines-in-block 0 do
+  lines# 0 do
     edd-x @   edd-y @ 1+ i + at
     \ i green hex . decimal norm
-    dup line-size 1- type 
+    dup cols# 1- type 
     green [char] | emit norm 
-    line-size +
+    cols# +
   loop
   drop
   cr
@@ -79,13 +79,13 @@ s" data.blk" open-blk read-blk cr cr . cr cr
 0 var edd-col
 
 : cursor-addr ( -- a )
-  edd-row @ 1- line-size  * edd-col @ + blk @ block +
+  edd-row @ 1- cols#  * edd-col @ + blk @ block +
 ;
 
 : bound-row-up    edd-row @ 1 < if 1 edd-row ! then ;
-: bound-row-down  edd-row @ lines-in-block > if lines-in-block edd-row ! then ;
+: bound-row-down  edd-row @ lines# > if lines# edd-row ! then ;
 : bound-col-left  edd-col @ 0 < if 0 edd-col ! then ;
-: bound-col-right edd-col @ line-size 2 - > if line-size 2 - edd-col ! then ;
+: bound-col-right edd-col @ cols# 2 - > if cols# 2 - edd-col ! then ;
 
 0 var latest-key
 
@@ -98,9 +98,9 @@ s" data.blk" open-blk read-blk cr cr . cr cr
 : cursor-up         -1 edd-row +!  bound-row-up ;
 : cursor-down        1 edd-row +!  bound-row-down ;
 : cursor-first-col   0 edd-col ! ;
-: cursor-last-col    line-size 2 - edd-col ! ;
+: cursor-last-col    cols# 2 - edd-col ! ;
 : cursor-home        0 edd-col !  1 edd-row ! ;
-: cursor-unhome      0 edd-col !  lines-in-block edd-row ! ;
+: cursor-unhome      0 edd-col !  lines# edd-row ! ;
 
 : block-back
   blk @ dup 0> if
@@ -178,7 +178,7 @@ create normal-actions
   dup 127 = if backspace exit then
   dup latest-key c@ cursor-addr c!
 
-  edd-col @ line-size 1- = if
+  edd-col @ cols# 1- = if
   else 1 edd-col +! then  
 ;
 
