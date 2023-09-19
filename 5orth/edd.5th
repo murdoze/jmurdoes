@@ -9,6 +9,8 @@ require colors.5th
 
 \ Shortcuts
 
+decimal 
+
 : let constant ;
 : var ( v "name" -- ) create , does> ;
 
@@ -23,13 +25,21 @@ Normal var mode
 
 \ 1024 let blks#
 8 let blks#
-1025 let blk-size
+1024 let blk-size
 64 let cols#
 blk-size cols# / let lines#
 blks# blk-size * let blk-area
 
 create block0 blk-area allot
-block0 blk-area bl fill
+block0 blk-area 32 fill
+
+: cr-fill ( block1 count -- )
+  0 do
+    cols# +  dup 10 swap c!
+  loop    
+;
+block0
+blks# lines# * cr-fill
 
 0 var blk
 
@@ -42,13 +52,13 @@ block0 blk-area bl fill
 
 : open-blk ( addr u -- )  r/w open-file throw to blk-fd ;
 : read-blk ( -- ) block0 blk-area blk-fd read-file throw ;
-: seek-blk0 ( -- ) 0 blk-fd reposition-file throw ;
+: seek-blk0 ( -- ) 0 blk-fd reposition-file drop ;
 : write-blk ( -- ) block0 blk-area blk-fd write-file throw ;
 : close-blk ( -- ) blk-fd close-file throw -1 to blk-fd ;
 
-s" data.blk" open-blk read-blk cr cr . cr cr
+\ s" data.blk" open-blk read-blk cr cr . cr cr
 
-: wb  write-blk close-blk ;
+\ : wb  write-blk close-blk ;
 
 \ Screen eddittor
 
@@ -64,8 +74,7 @@ s" data.blk" open-blk read-blk cr cr . cr cr
   cr
   lines# 0 do
     edd-x @   edd-y @ 1+ i + at
-    \ i green hex . decimal norm
-    dup cols# 1- type 
+    dup cols#  type 
     green [char] | emit norm 
     cols# +
   loop
@@ -92,7 +101,7 @@ s" data.blk" open-blk read-blk cr cr . cr cr
 \ Eddittor Actions
 
 : edd-quit           r> drop r> drop ;
-: edd-save-quit      seek-blk0 write-blk r> drop r> drop ;
+: edd-save-quit      ( seek-blk0 write-blk ) r> drop r> drop ;
 : cursor-left       -1 edd-col +!  bound-col-left ;
 : cursor-right       1 edd-col +!  bound-col-right ;
 : cursor-up         -1 edd-row +!  bound-row-up ;
