@@ -78,7 +78,7 @@ blks# lines# * cr-fill
     green norm 
     cols# +
   loop
-  drop
+  drop 
   cr
 ;
 
@@ -113,13 +113,13 @@ blks# lines# * cr-fill
 
 : block-back
   blk @ dup 0> if
-    1- dup blk ! block
-  then ;  
+    1- dup blk ! block drop exit
+  then drop ;  
 
 : block-forward
   blk @ dup blks# 1- < if
-    1+ dup blk ! block
-  then ;  
+    1+ dup blk ! block drop exit
+  then drop ;   
 
 : insert-mode Insert mode ! ;
 : normal-mode  mode @ Normal = if Insert else Normal then mode ! ;
@@ -186,7 +186,7 @@ create normal-actions
   dup  16 = if exit then
   dup  27 = if normal-mode exit then
   dup 127 = if backspace exit then
-  dup latest-key c@ cursor-addr c!
+  latest-key c@ cursor-addr c!
 
   edd-col @ cols# 1- = if
   else 1 edd-col +! then  
@@ -203,7 +203,7 @@ create normal-actions
   5 5 at yellow emit bl emit green  . norm 
 ;
 : show-stack
-  ( 5 1 at ) white .s norm 
+  5 1 at white .s norm 
 ;
 
 : show-block .screen ;
@@ -219,8 +219,8 @@ create normal-actions
 
 : edd
   begin
-    \ show-stack    
-    save
+    show-stack    
+    \ save
     show-block
     show-status
     show-cursor
@@ -230,12 +230,12 @@ create normal-actions
     else
       insert-process
     then
-    restore
-    show-cursor
+    \ restore
+    \ show-cursor
   again
 ;
 
 clear
-0 block .screen
+\ 0 block .screen
 edd
 
