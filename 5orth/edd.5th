@@ -35,7 +35,7 @@ block0 blk-area 32 fill
 
 : cr-fill ( block1 count -- )
   0 do
-    cols# + dup 01 swap c!
+    cols# + dup 32 swap c!
   loop
   drop    
 ;
