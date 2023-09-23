@@ -36,7 +36,8 @@ block0 blk-area 32 fill
 : cr-fill ( block1 count -- )
   0 do
     cols# + dup 01 swap c!
-  loop    
+  loop
+  drop    
 ;
 block0
 blks# lines# * cr-fill
@@ -180,13 +181,13 @@ create normal-actions
 ;
 
 : insert-process ( c -- )
-  dup   9 = if normal-mode exit then
-  dup  13 = if 0 edd-col ! 1 edd-row +! bound-row-down exit then
-  dup  10 = if normal-mode exit then
-  dup  16 = if exit then
-  dup  27 = if normal-mode exit then
-  dup 127 = if backspace exit then
-  latest-key c@ cursor-addr c!
+  dup   9 = if normal-mode drop exit then
+  dup  13 = if 0 edd-col ! 1 edd-row +! bound-row-down drop exit then
+  dup  10 = if normal-mode drop exit then
+  dup  16 = if drop exit then
+  dup  27 = if normal-mode drop exit then
+  dup 127 = if backspace drop exit then
+  drop latest-key c@ cursor-addr c!
 
   edd-col @ cols# 1- = if
   else 1 edd-col +! then  
@@ -237,5 +238,5 @@ create normal-actions
 
 clear
 \ 0 block .screen
-edd
-
+\ edd
+.s
