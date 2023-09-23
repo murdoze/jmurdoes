@@ -35,7 +35,7 @@ block0 blk-area 32 fill
 
 : cr-fill ( block1 count -- )
   0 do
-    cols# +  dup 10 swap c!
+    cols# + dup 01 swap c!
   loop    
 ;
 block0
@@ -62,7 +62,7 @@ blks# lines# * cr-fill
 
 \ Screen eddittor
 
-5 var edd-x
+21 var edd-x
 5 var edd-y
 
 : .screen ( -- )
@@ -73,9 +73,9 @@ blks# lines# * cr-fill
   blk @ block
   cr
   lines# 0 do
-    edd-x @   edd-y @ 1+ i + at
-    dup cols#  type 
-    green [char] | emit norm 
+    edd-x @ edd-y @ 1+ i + at
+    dup cols# 1- type 
+    green norm 
     cols# +
   loop
   drop
@@ -181,9 +181,10 @@ create normal-actions
 
 : insert-process ( c -- )
   dup   9 = if normal-mode exit then
-  dup  13 = if normal-mode exit then
+  dup  13 = if 0 edd-col ! 1 edd-row +! bound-row-down exit then
+  dup  10 = if normal-mode exit then
   dup  16 = if exit then
-  dup  27 = if exit then
+  dup  27 = if normal-mode exit then
   dup 127 = if backspace exit then
   dup latest-key c@ cursor-addr c!
 
