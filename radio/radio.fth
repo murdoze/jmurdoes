@@ -129,7 +129,9 @@ variable mhere
   dup .#### space
   dup 10 0 do dup m@ .## 1+ loop drop space space
   10 0 do 
-    dup m@ dup 0c = if drop [char] . then emit space 1+ 
+    dup m@ 
+    dup 0a = if drop [char] . then dup 09 = if drop [char] . then dup 0d = if drop [char] . then
+    emit 1+ 
   loop drop ;
 
 : mdump ( ofs lines -- )
@@ -487,8 +489,8 @@ disinstrs 100 cells 0 fill
 : ); ( instr -- ) postpone ;  swap disinstr cell! ; immediate
 
 variable dis
-: dis@@ dis @ FFFF and ;
-: dis!! FFFF and dis ! ;
+: dis@@ dis cell@ FFFF and ;
+: dis!! FFFF and dis !! ;
 : dis! dis!! ;
 : dis++ dis@@ 1+ dis!! ;
 : @dis dis@@ m@ ;
@@ -550,7 +552,7 @@ variable dis
 
 20 :( .1" -" ); 
 21 :( @@dis dup .#### space ." LXI H, " .#### dis++ dis++ ); 
-21 :( @@dis dup .#### space ." SHLD " .#### dis++ dis++ ); 
+22 :( @@dis dup .#### space ." SHLD " .#### dis++ dis++ ); 
 23 :( .1" INX H" ); 
 24 :( .1" INR H" ); 
 25 :( .1" DCR H" ); 
@@ -563,7 +565,7 @@ variable dis
 2B :( .1" DCX H" ); 
 2C :( .1" INR L" ); 
 2D :( .1" DCR L" ); 
-26 :( @dis dup .## ."    " ." MVI L, " .## dis++ ); 
+2E :( @dis dup .## ."    " ." MVI L, " .## dis++ ); 
 2F :( .1" CMA" ); 
 
 30 :( .1" -" ); 
@@ -724,8 +726,8 @@ BF :( .1" CMP A" );
 C0 :( .1" RNZ" ); 
 C1 :( .1" POP B" ); 
 C2 :( @@dis dup .#### space ." JNZ " .#### dis++ dis++ ); 
-C2 :( @@dis dup .#### space ." JMP " .#### dis++ dis++ ); 
-C2 :( @@dis dup .#### space ." CNZ " .#### dis++ dis++ ); 
+C3 :( @@dis dup .#### space ." JMP " .#### dis++ dis++ ); 
+C4 :( @@dis dup .#### space ." CNZ " .#### dis++ dis++ ); 
 C5 :( .1" PUSH B" ); 
 C6 :( @dis dup .## ."    " ." ADI " .## dis++ ); 
 C7 :( .1" RST 0" ); 
@@ -793,31 +795,47 @@ FD :( .1" -" );
 FE :( @dis dup .## ."    " ." CPI " .## dis++ ); 
 FF :( .1" RST 7" ); 
 
+\ -- Loading
+
+: bload ( ofs filename-addr filename-len -- )
+  r/o open-file throw >r ( ofs R:fd -- )
+  adr 1000 r@ read-file throw drop
+  r> close-file throw ;
+
+\ f800 s" monitor.bin" bload
 
 
-\ -- Test programs
-: test1 
-33 a!
-00 m,
-01 m, 0020 m,,
-02 m,
-03 m,
-02 m,
-04 m,
-02 m,
-05 m,
-02 m,
-0c m, 0d m,
+\ Load RADIO-86RK file, start location is detected from the header
 
-.regs
-0 mdump-page
-go
-.regs
-0 mdump-page
+create rfilebuf 5 allot
+variable rstart
+variable rend
+variable rsize
+
+: rload ( filename-addr filename-len -- )
+  r/o open-file throw >r ( ofs R:fd -- )
+  rfilebuf 5 r@ read-file throw 5 < if throw then
+  rfilebuf @ e6 <> if ." RADIO-86RK signature byte E6 missing" throw then
+  rfilebuf 1 + @ 8 lshift rfilebuf 2 + @ + rstart cell!
+  rfilebuf 3 + @ 8 lshift rfilebuf 4 + @ + rend cell!
+  rstart cell@ adr rend cell@ rstart cell@ - dup rsize cell! r@ read-file throw drop \ TODO  memory buffer overflow if malformed file
+  r> close-file throw
+  cr ." START=" rstart cell@ .#### ." END=" rend cell@ .#### ." SIZE=" rsize cell@ .#### cr
 ;
 
-: test-mov
-  11 a! 12 b! 13 c! 14 d! 15 e! 16 h! 17 l!
-  40 m, 41 m, 42 m, 43 m, 44 m, 45 m, 46 m, 47 m, 
-;
+\ -- Monitor
+\
+\ F803 getch      IN: --           OUT: A=char
+\ F809 putch      IN: A=char       OUT: --
+\ F812 keypress?  IN: --           OUT: A=00 - pressed, A=FF - not pressed
+\ F815 printhex   IN: A=byte       
+\ F818 printf     IN: HL=0-term string
+\ F81B inkey      IN: --           OUT: A=FF - not pressed A=FE RUS/LAT A=keycode if pressed
+\ F81E getcursor  IN: --           OUT: H=line+3 L=column+8
+\ F821 getbyte from screen buffer? OUT: A=byte	
+\ F830 gethimem   IN: --           OUT: HL=himem (7FFF?)
+
+: monitor F800 s" monitor.rom" bload ;
+: piton s" PITON.GAM" rload ;
+
 
