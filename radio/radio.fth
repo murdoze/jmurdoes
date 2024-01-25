@@ -133,9 +133,9 @@ mem-write-trap cell!
 
 : m@ ( ofs -- byte ) adr @ ; \ TODO traps on read/write/execute of certain addresses
 
-: m! ( byte ofs -- ) adr ! ;
-  mem-write-trap cell@ execute
-  if adr ! else drop drop then
+: m! ( byte ofs -- ) adr !
+\  mem-write-trap cell@ execute
+\  if adr ! else drop drop then
 ;
 
 : m@@ ( ofs -- word ) adr @@ ;
@@ -224,6 +224,12 @@ variable handler
 
 variable idle
 :: ; idle cell!
+
+: ;handler  
+  handler cell@ compile,
+  postpone ;
+  latestxt handler cell! 
+; immediate
 
 \ ---- 
 
@@ -893,17 +899,6 @@ FD :( .1" -" );
 FE :( @dis dup .## ."    " ." CPI " .## dis++ ); 
 FF :( .1" RST 7" ); 
 
-\ -- Trace with printing each step
-
-: trace
-  unstop
-  begin
-    running? while
-    1 disasm-pc .regs
-    step
-  repeat
-;
-
 \ -- Loading
 
 : bload ( ofs filename-addr filename-len -- )
@@ -958,14 +953,6 @@ variable rsize
   F800 pc!!
 ;
 
-: keyboard-handler
-  pc@@ FE72 = if
-    \ cr ." AT KEYBOARD GET CHAR" cr
-    \ stop
-    return
-  then
-;handler
-
 : FE12-handler
   pc@@ FE12 = if
     cr ." TRAP AT PC=FE12" 
@@ -984,32 +971,97 @@ variable rsize
   then
 ;handler
 
-: radio-idle
-  ekey? if
-    ekey key_code m!
-  then
-;
-latestxt idle cell!
-
-: rom-write-trap ( ofs -- ofs 1|0 )
+: memory-write-trap ( val ofs -- val ofs 1|0 )
+  \ ROM write
   dup F800 >= if dup FFFF <= if
-    cr swap ." TRAP ON ROM WRITE " .##  ." TO " .#### 
+    2dup cr swap ." TRAP ON ROM WRITE " .##  ." TO " .#### 
     stop 0 exit
   then then
+
+  dup 7609 = if
+    2dup cr swap ." TRAP ON LAST KEY WRITE " .##  ." TO " .#### 
+    stop 0 exit
+  then
+
   [ mem-write-trap cell@ compile,  ]
 ;
 latestxt mem-write-trap cell!
 
-: cs 1 disasm-pc .regs .s ;
+: .monvars
+  ." CURSOR ADDR=" cursor_addr m@@ .#### ." X=" cursor_x m@ .## ." Y=" cursor_y m@ .## cr
+  ." KEY PRESSED=" key_pressed m@ .## ." CODE=" key_code m@ .## ." REPEAT=" key_repeat_count m@ .## cr 
+;
+
+: cs 1 disasm-pc .regs .monvars .s ;
 : s step cs ;
+
+\ -- Trace with printing each step
+
+: trace
+  unstop
+  begin
+    running? while
+    cs
+    step
+  repeat
+;
+
+\ -- Screen
+
+require unicode.5th
+require colors.5th
+
+hex
+
+: .screen
+  1 1 at
+  cr ." == SCREEN === " cr
+  7FFF 76D0 do
+    i m@ 
+    dup 0= if drop space else emit then
+    i 4e mod 0= if cr then
+  loop
+  cr ." == SCREEN === " cr
+  .monvars
+;
+
+variable pressed_key_code
+
+: radio-idle
+  ekey? if
+    ekey dup pressed_key_code cell!
+    ." PRESSED KEY " .##
+  then
+  
+  pc@@ FCBA = if .screen then
+;
+latestxt idle cell!
+
+: keyboard-handler
+  pc@@ FE72 = if
+    pressed_key_code @ 
+    dup 0= if drop FF a! \ no key presse
+    else
+      a!
+      0 pressed_key_code !
+    then    
+    return
+  then
+;handler
+
+
 
 \ https://emuverse.ru/wiki/%D0%A0%D0%B0%D0%B4%D0%B8%D0%BE-86%D0%A0%D0%9A/%D0%A0%D0%B0%D0%B4%D0%B8%D0%BE_04-87/%D0%9D%D0%B5%D0%BC%D0%BD%D0%BE%D0%B3%D0%BE_%D0%BE_%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B8
 : piton s" PITON.GAM" rload ;
 
 \ TODO
 \ + Parity flag implement
+\ - Memory trap on write to 8609 - last keyboard flag. Why does it store FF there - indicator that no key is pressed?
 \ - RRC/RLC/RAL/RAR implement
-\ ! the subroutine where F81B (inkey) jumps (FE01) should be emulated, since it's used internally by monitor
+\ ! the subroutine where inkey (F81B) jumps (FE01) should be emulated, since it's used internally by monitor
+\ ! entry_kbit (FE01) has to be intercepted and return the correct status code
+\ ! entry_scan_kbd (FE72) has to be intercepted and return the correct code
+\ ! entry_gets (FE63) has to be intercepted 
 \ - handler if the stack grows down too much (like now)
 \ --- (Not needed)  ! calls to address FACE (video controller, VG75 setup) have to be simulated, since it waits for the controller status to change, and thus monitor will hang
 \ 
