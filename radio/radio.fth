@@ -70,9 +70,24 @@ binary
 : fs@ f@ 10000000 and ? ; : +fs! f@ 10000000 or f! ; : -fs! f@ 10000000 invert and f! ;
 hex
 
+: bit-count ( v -- bit-count )
+  0 >r
+  begin
+    dup 
+  while
+    dup 1 and if r> 1+ >r then
+    1 rshift
+  repeat
+  drop
+  r>
+;
+
+: parity? ( bit-count -- 1=even|0=odd )
+  1 and if 0 else 1 then ;
+
 : ?fc! dup 100 >= if +fc! else -fc! then ;
 : ??fc! dup 1000 >= if +fc! else -fc! then ;
-: ?fp! ; \ TODO implement parity check
+: ?fp! dup parity? if +fp! else -fp! then ; 
 : ?fa! ; \ TODO trap on DAA, then decide how to implement
 : ?fz! dup 0= if +fz! else -fz! then ;
 : ?fs! dup 80 and if +fs! else -fs! then ;
@@ -95,7 +110,10 @@ hex
 \ ----
 
 create mem 10000 allot
-mem 10000 0 fill
+
+: coldstart mem 10000 0 fill ;
+
+coldstart
 
 : adr ( ofs -- addr ) FFFF and mem + ;
 
@@ -115,7 +133,7 @@ variable mhere
 
 : @pc ( -- v ) pc@@ m@ ;
 : @@pc ( -- v ) pc@@ m@@ ;
-: !!pc ( v -- ) pc!! m!! ;
+: !!pc ( v -- ) pc@@ m!! ;
 
 : !!sp ( v -- ) sp@@ m!! ;
 : @@sp ( -- v ) sp@@ m@@ ;
@@ -355,7 +373,7 @@ latestxt emulator cell!
 
 80 ( ADD B	) :< pc++  a@ b@ + ?fszapc! a! >;
 81 ( ADD C	) :< pc++  a@ c@ + ?fszapc! a! >;
-82 ( ADD D	) :< pc++  a@ b@ + ?fszapc! a! >;
+82 ( ADD D	) :< pc++  a@ d@ + ?fszapc! a! >;
 83 ( ADD E	) :< pc++  a@ e@ + ?fszapc! a! >;
 84 ( ADD H	) :< pc++  a@ h@ + ?fszapc! a! >;
 85 ( ADD L	) :< pc++  a@ l@ + ?fszapc! a! >;
@@ -364,7 +382,7 @@ latestxt emulator cell!
 
 88 ( ADC B	) :< pc++  a@ b@ + fc@ + ?fszapc! a! >;
 89 ( ADC C	) :< pc++  a@ c@ + fc@ + ?fszapc! a! >;
-8A ( ADC D	) :< pc++  a@ b@ + fc@ + ?fszapc! a! >;
+8A ( ADC D	) :< pc++  a@ d@ + fc@ + ?fszapc! a! >;
 8B ( ADC E	) :< pc++  a@ e@ + fc@ + ?fszapc! a! >;
 8C ( ADC H	) :< pc++  a@ h@ + fc@ + ?fszapc! a! >;
 8D ( ADC L	) :< pc++  a@ l@ + fc@ + ?fszapc! a! >;
@@ -373,7 +391,7 @@ latestxt emulator cell!
 
 90 ( SUB B	) :< pc++  a@ b@ - ?fszapc! a! >;
 91 ( SUB C	) :< pc++  a@ c@ - ?fszapc! a! >;
-92 ( SUB D	) :< pc++  a@ b@ - ?fszapc! a! >;
+92 ( SUB D	) :< pc++  a@ d@ - ?fszapc! a! >;
 93 ( SUB E	) :< pc++  a@ e@ - ?fszapc! a! >;
 94 ( SUB H	) :< pc++  a@ h@ - ?fszapc! a! >;
 95 ( SUB L	) :< pc++  a@ l@ - ?fszapc! a! >;
@@ -382,7 +400,7 @@ latestxt emulator cell!
 
 98 ( SBB B	) :< pc++  a@ b@ - fc@ - ?fszapc! a! >;
 99 ( SBB C	) :< pc++  a@ c@ - fc@ - ?fszapc! a! >;
-9A ( SBB D	) :< pc++  a@ b@ - fc@ - ?fszapc! a! >;
+9A ( SBB D	) :< pc++  a@ d@ - fc@ - ?fszapc! a! >;
 9B ( SBB E	) :< pc++  a@ e@ - fc@ - ?fszapc! a! >;
 9C ( SBB H	) :< pc++  a@ h@ - fc@ - ?fszapc! a! >;
 9D ( SBB L	) :< pc++  a@ l@ - fc@ - ?fszapc! a! >;
@@ -391,7 +409,7 @@ latestxt emulator cell!
 
 A0 ( ANA B	) :< pc++  a@ b@ and ?fszapc! a! >;
 A1 ( ANA C	) :< pc++  a@ c@ and ?fszapc! a! >;
-A2 ( ANA D	) :< pc++  a@ b@ and ?fszapc! a! >;
+A2 ( ANA D	) :< pc++  a@ d@ and ?fszapc! a! >;
 A3 ( ANA E	) :< pc++  a@ e@ and ?fszapc! a! >;
 A4 ( ANA H	) :< pc++  a@ h@ and ?fszapc! a! >;
 A5 ( ANA L	) :< pc++  a@ l@ and ?fszapc! a! >;
@@ -400,7 +418,7 @@ A7 ( ANA A	) :< pc++  a@ a@ and ?fszapc! a! >;
 
 A8 ( XRA B	) :< pc++  a@ b@ xor ?fszapc! a! >;
 A9 ( XRA C	) :< pc++  a@ c@ xor ?fszapc! a! >;
-AA ( XRA D	) :< pc++  a@ b@ xor ?fszapc! a! >;
+AA ( XRA D	) :< pc++  a@ d@ xor ?fszapc! a! >;
 AB ( XRA E	) :< pc++  a@ e@ xor ?fszapc! a! >;
 AC ( XRA H	) :< pc++  a@ h@ xor ?fszapc! a! >;
 AD ( XRA L	) :< pc++  a@ l@ xor ?fszapc! a! >;
@@ -409,7 +427,7 @@ AF ( XRA A	) :< pc++  a@ a@ xor ?fszapc! a! >;
 
 B0 ( ORA B	) :< pc++  a@ b@ or ?fszapc! a! >;
 B1 ( ORA C	) :< pc++  a@ c@ or ?fszapc! a! >;
-B2 ( ORA D	) :< pc++  a@ b@ or ?fszapc! a! >;
+B2 ( ORA D	) :< pc++  a@ d@ or ?fszapc! a! >;
 B3 ( ORA E	) :< pc++  a@ e@ or ?fszapc! a! >;
 B4 ( ORA H	) :< pc++  a@ h@ or ?fszapc! a! >;
 B5 ( ORA L	) :< pc++  a@ l@ or ?fszapc! a! >;
@@ -418,7 +436,7 @@ B7 ( ORA A	) :< pc++  a@ a@ or ?fszapc! a! >;
 
 B8 ( CMP B	) :< pc++  a@ b@ - ?fszapc! drop >;
 B9 ( CMP C	) :< pc++  a@ c@ - ?fszapc! drop >;
-BA ( CMP D	) :< pc++  a@ b@ - ?fszapc! drop >;
+BA ( CMP D	) :< pc++  a@ d@ - ?fszapc! drop >;
 BB ( CMP E	) :< pc++  a@ e@ - ?fszapc! drop >;
 BC ( CMP H	) :< pc++  a@ h@ - ?fszapc! drop >;
 BD ( CMP L	) :< pc++  a@ l@ - ?fszapc! drop >;
@@ -821,6 +839,17 @@ FC :( @@dis dup .#### space ." CM " .#### dis++ dis++ );
 FD :( .1" -" ); 
 FE :( @dis dup .## ."    " ." CPI " .## dis++ ); 
 FF :( .1" RST 7" ); 
+
+\ -- Trace with printing each step
+
+: trace
+  unstop
+  begin
+    running? while
+    1 disasm-pc .regs
+    step
+  repeat
+;
 
 \ -- Loading
 
