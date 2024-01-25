@@ -17,6 +17,8 @@ hex
 \ ----
 
 : reg variable ;
+: equ constant ;
+
 reg a reg f reg b reg c reg d reg e reg h reg l reg pc reg sp
 
 : a! a ! ; : a@ a @ ;
@@ -113,15 +115,22 @@ variable mhere
 
 : @pc ( -- v ) pc@@ m@ ;
 : @@pc ( -- v ) pc@@ m@@ ;
+: !!pc ( v -- ) pc!! m!! ;
 
 : !!sp ( v -- ) sp@@ m!! ;
 : @@sp ( -- v ) sp@@ m@@ ;
 : push ( v -- ) -2 sp+!  !!sp ;
 : pop ( -- v ) @@sp  2 sp+! ;
 
-: !bc bc@@ m! ; : @bc bc@@ m@ ;
-: !de de@@ m! ; : @de de@@ m@ ;
-: !hl hl@@ m! ; : @hl hl@@ m@ ;
+: !bc bc@@ m! ; 
+: @bc bc@@ m@ ;
+
+: !de de@@ m! ; 
+: @de de@@ m@ ;
+
+: !hl hl@@ m! ; 
+: !!hl hl@@ m!! ;
+: @hl hl@@ m@ ;
 
 \ ----
 
@@ -167,6 +176,12 @@ variable stopped
   repeat
 ;
 
+variable handler
+:noname ; handler cell!
+
+variable idle
+:noname ; idle cell!
+
 \ ---- 
 
 create instrs
@@ -181,7 +196,14 @@ instrs 100 cells 0 fill
 
 : i8080emulate
   pc@@ m@ instr@ dup
-  0 <> if execute else drop stop then
+  0 <> if 
+    execute 
+    handler cell@ execute \ after each step run handlers that can change registers and memory and anything else
+    idle cell@ execute \ after each step run idle handlers that can query keyboard status, update screen etc
+  else 
+    drop 
+    stop 
+  then
 ;
 latestxt emulator cell!
 
@@ -227,7 +249,7 @@ latestxt emulator cell!
 
 20 ( -           ) :< cr ." NOP 20" cr stop >;
 21 ( LXI H, D16  ) :< pc++  @@pc hl!!  pc++ pc++ >;
-22 ( SHLD adr	 ) :< pc++  hl@@ @@pc m!!  pc++ pc++  >;
+22 ( SHLD adr	 ) :< pc++  hl@@ !!pc  pc++ pc++  >;
 23 ( INX H       ) :< pc++  hl@@ 1+ hl!! >;
 24 ( INR H	 ) :< pc++  h@ 1+  ?fszap!  h! >;
 25 ( DCR H       ) :< pc++  h@ 1-  ?fszap!  h! >;
@@ -236,7 +258,7 @@ latestxt emulator cell!
 
 28 ( -           ) :< cr ." NOP 28" cr stop >;
 29 ( DAD H	 ) :< hl@@ hl@@ + ??fc! hl!! >;
-2A ( LHLD adr	 ) :< pc++  @@pc hl!!  pc++ pc++ >;
+2A ( LHLD adr	 ) :< pc++  @@pc !!hl  pc++ pc++ >;
 2B ( DCX H       ) :< pc++  hl@@ 1- hl!! >;
 2C ( INR L	 ) :< pc++  l@ 1+  ?fszap!  l! >;
 2D ( DCR L	 ) :< pc++  l@ 1-  ?fszap!  l! >;
@@ -246,7 +268,7 @@ latestxt emulator cell!
 30 ( -           ) :< cr ." NOP 30" cr stop >;
 31 ( LXI SP, D16 ) :< pc++  @@pc sp!!  pc++ pc++ >;
 32 ( STA adr	 ) :< pc++  a@ @@pc m!  pc++ pc++ >;
-23 ( INX SP      ) :< pc++  sp@@ 1+ sp!! >;
+33 ( INX SP      ) :< pc++  sp@@ 1+ sp!! >;
 34 ( INR M	 ) :< pc++  @hl 1+ ?fszap! !hl >;
 35 ( DCR M	 ) :< pc++  @hl 1- ?fszap! !hl >;
 36 ( MVI M,D8	 ) :< pc++  @pc !hl  pc++ >;
@@ -303,6 +325,7 @@ latestxt emulator cell!
 65 ( MOV H,L	) :< h l mov >;    
 66 ( MOV H,M	) :< pc++  @hl h! >;
 67 ( MOV H,A	) :< h a mov >;    
+
 68 ( MOV L,B	) :< l b mov >;    
 69 ( MOV L,C	) :< l c mov >;    
 6A ( MOV L,D	) :< l d mov >;    
@@ -310,15 +333,17 @@ latestxt emulator cell!
 6C ( MOV L,H	) :< l h mov >;    
 6D ( MOV L,L	) :< l l mov >;    
 6E ( MOV L,M	) :< pc++  @hl l! >;
-6F ( MOV L,A	) :< c a mov >;    
+6F ( MOV L,A	) :< l a mov >;
+    
 70 ( MOV M,B	) :< pc++  b@ !hl >;
 71 ( MOV M,C	) :< pc++  c@ !hl >;
 72 ( MOV M,D	) :< pc++  d@ !hl >;
 73 ( MOV M,E	) :< pc++  e@ !hl >;
 74 ( MOV M,H	) :< pc++  h@ !hl >;
 75 ( MOV M,L	) :< pc++  l@ !hl >;
-76 ( HLT        ) :< cr ." HALT" cr >;
+76 ( HLT        ) :< cr ." HALT" cr stop >;
 77 ( MOV M,A	) :< pc++  a@ !hl >;
+
 78 ( MOV A,B	) :< a b mov >;    
 79 ( MOV A,C	) :< a c mov >;    
 7A ( MOV A,D	) :< a d mov >;    
@@ -391,14 +416,14 @@ B5 ( ORA L	) :< pc++  a@ l@ or ?fszapc! a! >;
 B6 ( ORA M	) :< pc++  a@ @hl or ?fszapc! a! >;
 B7 ( ORA A	) :< pc++  a@ a@ or ?fszapc! a! >;
 
-B8 ( CMP B	) :< pc++  a@ b@ - ?fszapc! >;
-B9 ( CMP C	) :< pc++  a@ c@ - ?fszapc! >;
-BA ( CMP D	) :< pc++  a@ b@ - ?fszapc! >;
-BB ( CMP E	) :< pc++  a@ e@ - ?fszapc! >;
-BC ( CMP H	) :< pc++  a@ h@ - ?fszapc! >;
-BD ( CMP L	) :< pc++  a@ l@ - ?fszapc! >;
-BE ( CMP M	) :< pc++  a@ @hl - ?fszapc! >;
-BF ( CMP A	) :< pc++  a@ a@ - ?fszapc! >;
+B8 ( CMP B	) :< pc++  a@ b@ - ?fszapc! drop >;
+B9 ( CMP C	) :< pc++  a@ c@ - ?fszapc! drop >;
+BA ( CMP D	) :< pc++  a@ b@ - ?fszapc! drop >;
+BB ( CMP E	) :< pc++  a@ e@ - ?fszapc! drop >;
+BC ( CMP H	) :< pc++  a@ h@ - ?fszapc! drop >;
+BD ( CMP L	) :< pc++  a@ l@ - ?fszapc! drop >;
+BE ( CMP M	) :< pc++  a@ @hl - ?fszapc! drop >;
+BF ( CMP A	) :< pc++  a@ a@ - ?fszapc! drop >;
 
 : call ( ofs -- ) pc@@ push  pc!! ;
 : jump ( ofs -- ) pc!! ;
@@ -473,7 +498,7 @@ FA ( JM adr	) :< pc++  @@pc  pc++ pc++  fs@ if jump else drop then >;
 FB ( EI	        ) :< pc++ >;
 FC ( CM adr	) :< pc++  @@pc  pc++ pc++  fs@ if call else drop then >;
 FD ( -		) :< cr ." CALL FD" cr stop >;
-FE ( CPI D8     ) :< pc++  a@ @pc - ?fszapc!  pc++ >;
+FE ( CPI D8     ) :< pc++  a@ @pc - ?fszapc! drop  pc++ >;
 FF ( RST 7	) :< pc++  0038 call >;
 
 \ ---- 
@@ -508,6 +533,8 @@ variable dis
     then
   loop
 ;
+
+: disasm-pc pc@@ dis!! disasm ;
 
 : 6spaces 6 spaces ;
 : .1" postpone 6spaces postpone ." ; immediate
@@ -561,7 +588,7 @@ variable dis
 
 28 :( .1" -" ); 
 29 :( .1" DAD H" ); 
-2A :( .1" LHLD adr" ); 
+2A :( @@dis dup .#### space ." LHLD " .#### dis++ dis++ ); 
 2B :( .1" DCX H" ); 
 2C :( .1" INR L" ); 
 2D :( .1" DCR L" ); 
@@ -571,7 +598,7 @@ variable dis
 30 :( .1" -" ); 
 31 :( @@dis dup .#### space ." LXI SP, " .#### dis++ dis++ ); 
 32 :( @@dis dup .#### space ." STA " .#### dis++ dis++ ); 
-23 :( .1" INX SP" ); 
+33 :( .1" INX SP" ); 
 34 :( .1" INR M" ); 
 35 :( .1" DCR M" ); 
 36 :( @dis dup .## ."    " ." MVI M, " .## dis++ ); 
@@ -826,7 +853,7 @@ variable rsize
 \ -- Monitor
 \
 \ F803 getch      IN: --           OUT: A=char
-\ F809 putch      IN: A=char       OUT: --
+\ F809 putch      IN: C=char       OUT: --
 \ F812 keypress?  IN: --           OUT: A=00 - pressed, A=FF - not pressed
 \ F815 printhex   IN: A=byte       
 \ F818 printf     IN: HL=0-term string
@@ -835,7 +862,68 @@ variable rsize
 \ F821 getbyte from screen buffer? OUT: A=byte	
 \ F830 gethimem   IN: --           OUT: HL=himem (7FFF?)
 
-: monitor F800 s" monitor.rom" bload ;
+\ Monitor variables
+7600 equ cursor_addr \ cursor memory address (word)
+7602 equ cursor_x
+7603 equ cursor_y
+7605 equ key_pressed \ 00=not pressed FF=pressed
+7606 equ key_ruslat_status \ 00=LAT FF=RUS
+7609 equ key_code \ key code
+760A equ key_repeat_count	
+
+: monitor 
+  F800 s" monitor.rom" bload 
+  F800 pc!!
+;
+
+: keyboard-handler
+  pc@@ FE72 = if
+    \ cr ." AT KEYBOARD GET CHAR" cr
+    \ stop
+    return
+  then
+;
+latestxt handler cell!
+
+: monitor-stack-handler
+  sp@@ 7660 < if
+    sp@@ 0<> if    
+      cr ." STACK GROWS TOO MUCH"
+      stop
+    then
+  then
+  [ handler cell@ compile,  ]
+;
+latestxt handler cell!
+
+
+: radio-idle
+  ekey? if
+    ekey key_code m!
+  then
+;
+latestxt idle cell!
+
+\ https://emuverse.ru/wiki/%D0%A0%D0%B0%D0%B4%D0%B8%D0%BE-86%D0%A0%D0%9A/%D0%A0%D0%B0%D0%B4%D0%B8%D0%BE_04-87/%D0%9D%D0%B5%D0%BC%D0%BD%D0%BE%D0%B3%D0%BE_%D0%BE_%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B8
 : piton s" PITON.GAM" rload ;
+
+\ TODO
+\ - Parity flag implement
+\ ! the subroutine where F81B (inkey) jumps should be emulated, since it's used internally by monitor
+\ - handler if the stack grows down too much (like now)
+\ --- (Not needed)  ! calls to address FACE (video controller, VG75 setup) have to be simulated, since it waits for the controller status to change, and thus monitor will hang
+\ 
+\ - screen and cursor display
+\ ? graphical screen 
+\ - scroll area in the bottom for GForth, top area for disassembler, regs, other stuff, mouse support (?) and screen ?
+\ - breakpoints: execute, read, write
+\ - handlers (to override some of monitor API, maybe something else)
+\ - names/labels
+\ - watches/variables (helpful for monitor debugging, for instance)
+\ - changed/accessed/executed bytes between breakpoints
+\ - step over (required changing disassembler)
+\ - trap on ROM writes
+\ - display stack and even maybe a name of a nearest function
+
 
 
