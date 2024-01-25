@@ -3,6 +3,8 @@
 vocabulary radio
 radio definitions
 
+: :: :noname ;
+
 hex
 : binary 2 base ! ;
 
@@ -12,9 +14,9 @@ hex
 : @ ( a -- byte ) c@ ;
 : ! ( byte a -- ) c! ;
 : @@ ( a -- word ) dup @ swap 1+ @ 8 lshift or ;
-: !! ( word a -- ) 2dup  swap swap !  swap 8 rshift swap 1+ ! ;
+: !! ( word a -- ) 2dup !  swap 8 rshift swap 1+ ! ;
 
-\ ----
+\ -- Registers
 
 : reg variable ;
 : equ constant ;
@@ -46,6 +48,8 @@ hex
 : sp+! ( n -- ) sp@@ + sp!! ; 
 
 : pc++ 1 pc+! ;
+
+\ -- Flags
 
 \ Flag register (F) bits:
 \ 7	6	5	4	3	2	1	0
@@ -95,7 +99,7 @@ hex
 : ?fszapc! ?fc! ?fp! ?fa! ?fz! ?fs! ;
 : ?fszap! ?fc! ?fp! ?fa! ?fz! ?fs! ;
 
-\ ---- 
+\ -- Formatting and printing 
 
 : .## 0 <# # # #> type space ;
 : .#### 0 <# # # # # #> type space ;
@@ -107,20 +111,35 @@ hex
    base cell! 
 ;
 
-\ ----
+\ -- Memory
 
 create mem 10000 allot
 
-: coldstart mem 10000 0 fill ;
+: coldstart 
+  mem 10000 0 fill 
+  0 a! 0 f! 0 b! 0 c! 0 d! 0 e! 0 h! 0 l!
+;
 
 coldstart
+
+\ -- Memory access traps
+
+variable mem-write-trap
+:: ( byte ofs -- byte ofs 1=proceed|0-skip ) 1 ; 
+mem-write-trap cell!
+
 
 : adr ( ofs -- addr ) FFFF and mem + ;
 
 : m@ ( ofs -- byte ) adr @ ; \ TODO traps on read/write/execute of certain addresses
+
 : m! ( byte ofs -- ) adr ! ;
+  mem-write-trap cell@ execute
+  if adr ! else drop drop then
+;
+
 : m@@ ( ofs -- word ) adr @@ ;
-: m!! ( word ofs -- ) adr !! ;
+: m!! ( word ofs -- ) 2dup m!  swap 8 rshift swap 1+ m! ;
 
 variable mhere
 
@@ -150,7 +169,7 @@ variable mhere
 : !!hl hl@@ m!! ;
 : @hl hl@@ m@ ;
 
-\ ----
+\ -- Memory dump
 
 : mdump-line ( ofs -- )
   dup .#### space
@@ -167,7 +186,7 @@ variable mhere
 
 : mdump-page 10 mdump ;
 
-\ ----
+\ -- Emulator
 
 variable emulator
 
@@ -195,12 +214,46 @@ variable stopped
 ;
 
 variable handler
-:noname ; handler cell!
+:: ; handler cell!
+
+: ;handler  
+  handler cell@ compile,
+  postpone ;
+  latestxt handler cell! 
+; immediate
 
 variable idle
-:noname ; idle cell!
+:: ; idle cell!
 
 \ ---- 
+
+\ -- Breakpoints
+
+create breakpoints
+10000 allot
+breakpoints 10000 0 fill
+
+: brk ( ofs -- addr ) breakpoints + ;
+: +brk ( ofs -- ) brk 1 swap ! ;
+: -brk ( ofs -- ) brk 0 swap ! ;
+: ?brk ( ofs -- ) brk @ ;
+
+: breakpoint-handler
+  pc@@ ?brk if
+    cr ." BREAK AT " pc@@ .#### cr
+    stop
+  then 
+;handler
+
+: .brk
+  cr ." Breakpoints:" cr
+  FFFF 0 do
+    i ?brk if i .#### cr then
+  loop
+  cr
+;
+
+\ -- Instructions emulator
 
 create instrs
 100 cells allot
@@ -209,7 +262,7 @@ instrs 100 cells 0 fill
 : instr ( n -- addr ) FF and cells instrs + ;
 : instr@ ( n -- xt ) instr cell@ ;
 
-: :< :noname ;
+: :< :: ;
 : >; ( instr ) postpone ;  swap instr cell! ; immediate
 
 : i8080emulate
@@ -239,7 +292,7 @@ latestxt emulator cell!
 07 ( RLC        1) :< cr ." RLC 07" cr stop >; (	CY	A = A << 1; bit 0 = prev bit 7; CY = prev bit 7 )
 
 08 ( -           ) :< cr ." NOP 08" cr stop >;
-09 ( DAD B	 ) :< hl@@ bc@@ + ??fc! hl!! >;
+09 ( DAD B	 ) :< pc++  hl@@ bc@@ + ??fc! hl!! >;
 0A ( LDAX B	 ) :< pc++  @bc a! >;
 0B ( DCX B       ) :< pc++  bc@@ 1- bc!! >;
 0C ( INR C	 ) :< pc++  c@ 1+  ?fszap!  c! >;
@@ -257,7 +310,7 @@ latestxt emulator cell!
 17 ( RAL	1) :< cr ." RAL 17" cr stop >; (	CY	A = A << 1; bit 0 = prev CY; CY = prev bit 7 )
 
 18 ( -           ) :< cr ." NOP 18" cr stop >;
-19 ( DAD D	 ) :< hl@@ de@@ + ??fc! hl!! >;
+19 ( DAD D	 ) :< pc++  hl@@ de@@ + ??fc! hl!! >;
 1A ( LDAX D	 ) :< pc++  @de a! >;
 1B ( DCX D       ) :< pc++  de@@ 1- de!! >;
 1C ( INR E	 ) :< pc++  e@ 1+  ?fszap!  e! >;
@@ -267,7 +320,7 @@ latestxt emulator cell!
 
 20 ( -           ) :< cr ." NOP 20" cr stop >;
 21 ( LXI H, D16  ) :< pc++  @@pc hl!!  pc++ pc++ >;
-22 ( SHLD adr	 ) :< pc++  hl@@ !!pc  pc++ pc++  >;
+22 ( SHLD adr	 ) :< pc++  hl@@ @@pc m!!  pc++ pc++  >;
 23 ( INX H       ) :< pc++  hl@@ 1+ hl!! >;
 24 ( INR H	 ) :< pc++  h@ 1+  ?fszap!  h! >;
 25 ( DCR H       ) :< pc++  h@ 1-  ?fszap!  h! >;
@@ -275,8 +328,8 @@ latestxt emulator cell!
 27 ( DAA	1) :< cr ." DAA 27" cr stop >;
 
 28 ( -           ) :< cr ." NOP 28" cr stop >;
-29 ( DAD H	 ) :< hl@@ hl@@ + ??fc! hl!! >;
-2A ( LHLD adr	 ) :< pc++  @@pc !!hl  pc++ pc++ >;
+29 ( DAD H	 ) :< pc++  hl@@ hl@@ + ??fc! hl!! >;
+2A ( LHLD adr	 ) :< pc++  @@pc m@@ hl!!  pc++ pc++ >;
 2B ( DCX H       ) :< pc++  hl@@ 1- hl!! >;
 2C ( INR L	 ) :< pc++  l@ 1+  ?fszap!  l! >;
 2D ( DCR L	 ) :< pc++  l@ 1-  ?fszap!  l! >;
@@ -293,8 +346,8 @@ latestxt emulator cell!
 37 ( STC	 ) :< pc++  +fc! >;
 
 38 ( -           ) :< cr ." NOP 38" cr stop >;
-39 ( DAD SP	 ) :< hl@@ sp@@ + ??fc! hl!! >;
-3A ( LDA adr	 ) :< pc++  @pc a!  pc++ pc++ >;
+39 ( DAD SP	 ) :< pc++  hl@@ sp@@ + ??fc! hl!! >;
+3A ( LDA adr	 ) :< pc++  @@pc m@ a!  pc++ pc++ >;
 3B ( DCX SP      ) :< pc++  sp@@ 1- sp!! >;
 3C ( INR A	 ) :< pc++  a@ 1+  ?fszap!  a! >;
 3D ( DCR A	 ) :< pc++  a@ 1-  ?fszap!  a! >;
@@ -528,7 +581,7 @@ disinstrs 100 cells 0 fill
 : disinstr ( n -- addr ) FF and cells disinstrs + ;
 : disinstr@ ( n -- xt ) disinstr cell@ ;
 
-: :( :noname ;
+: :( :: ;
 : ); ( instr -- ) postpone ;  swap disinstr cell! ; immediate
 
 variable dis
@@ -911,8 +964,16 @@ variable rsize
     \ stop
     return
   then
-;
-latestxt handler cell!
+;handler
+
+: FE12-handler
+  pc@@ FE12 = if
+    cr ." TRAP AT PC=FE12" 
+  then
+  pc@@ FE72 = if
+    cr ." TRAP AT PC=FE72"
+  then
+; \ ;handler
 
 : monitor-stack-handler
   sp@@ 7660 < if
@@ -921,10 +982,7 @@ latestxt handler cell!
       stop
     then
   then
-  [ handler cell@ compile,  ]
-;
-latestxt handler cell!
-
+;handler
 
 : radio-idle
   ekey? if
@@ -933,12 +991,25 @@ latestxt handler cell!
 ;
 latestxt idle cell!
 
+: rom-write-trap ( ofs -- ofs 1|0 )
+  dup F800 >= if dup FFFF <= if
+    cr swap ." TRAP ON ROM WRITE " .##  ." TO " .#### 
+    stop 0 exit
+  then then
+  [ mem-write-trap cell@ compile,  ]
+;
+latestxt mem-write-trap cell!
+
+: cs 1 disasm-pc .regs .s ;
+: s step cs ;
+
 \ https://emuverse.ru/wiki/%D0%A0%D0%B0%D0%B4%D0%B8%D0%BE-86%D0%A0%D0%9A/%D0%A0%D0%B0%D0%B4%D0%B8%D0%BE_04-87/%D0%9D%D0%B5%D0%BC%D0%BD%D0%BE%D0%B3%D0%BE_%D0%BE_%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B8
 : piton s" PITON.GAM" rload ;
 
 \ TODO
-\ - Parity flag implement
-\ ! the subroutine where F81B (inkey) jumps should be emulated, since it's used internally by monitor
+\ + Parity flag implement
+\ - RRC/RLC/RAL/RAR implement
+\ ! the subroutine where F81B (inkey) jumps (FE01) should be emulated, since it's used internally by monitor
 \ - handler if the stack grows down too much (like now)
 \ --- (Not needed)  ! calls to address FACE (video controller, VG75 setup) have to be simulated, since it waits for the controller status to change, and thus monitor will hang
 \ 
