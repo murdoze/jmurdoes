@@ -90,14 +90,15 @@ hex
   1 and if 0 else 1 then ;
 
 : ?fc! dup 100 >= if +fc! else -fc! then ;
-: ??fc! dup 1000 >= if +fc! else -fc! then ;
 : ?fp! dup parity? if +fp! else -fp! then ; 
 : ?fa! ; \ TODO trap on DAA, then decide how to implement
 : ?fz! dup 0= if +fz! else -fz! then ;
 : ?fs! dup 80 and if +fs! else -fs! then ;
 
-: ?fszapc! ?fc! ?fp! ?fa! ?fz! ?fs! ;
-: ?fszap! ?fc! ?fp! ?fa! ?fz! ?fs! ;
+: ??fc! dup 1000 >= if +fc! else -fc! then ;
+
+: ?fszapc! FF and ?fc! ?fp! ?fa! ?fz! ?fs! ;
+: ?fszap! FF and ?fc! ?fp! ?fa! ?fz! ?fs! ;
 
 \ -- Formatting and printing 
 
@@ -131,11 +132,11 @@ mem-write-trap cell!
 
 : adr ( ofs -- addr ) FFFF and mem + ;
 
-: m@ ( ofs -- byte ) adr @ ; \ TODO traps on read/write/execute of certain addresses
+: m@ ( ofs -- byte ) adr @ ;
 
-: m! ( byte ofs -- ) adr !
-\  mem-write-trap cell@ execute
-\  if adr ! else drop drop then
+: m! ( byte ofs -- )
+  mem-write-trap cell@ execute
+  if adr ! else drop drop then
 ;
 
 : m@@ ( ofs -- word ) adr @@ ;
@@ -171,24 +172,28 @@ variable mhere
 
 \ -- Memory dump
 
-: mdump-line ( ofs -- )
+: .dump-line ( ofs -- )
   dup .#### space
   dup 10 0 do dup m@ .## 1+ loop drop space space
   10 0 do 
     dup m@ 
-    dup 0a = if drop [char] . then dup 09 = if drop [char] . then dup 0d = if drop [char] . then
+    dup 1F <= if drop [char] . else dup 7F = if drop [char] . then then
     emit 1+ 
   loop drop ;
 
-: mdump ( ofs lines -- )
+: .dump ( ofs lines -- )
   cr 6 spaces 10 0 do i space .  loop 
-  0 do dup cr mdump-line 10 + loop drop cr ;
+  0 do dup cr .dump-line 10 + loop drop cr ;
 
-: mdump-page 10 mdump ;
+: .dump-page 10 .dump ;
 
 \ -- Emulator
 
 variable emulator
+
+variable lastpc
+: lastpc@@ lastpc cell@ ;
+: lastpc!! FFFF and lastpc cell! ;
 
 : emulate 
   emulator cell@ dup
@@ -202,6 +207,8 @@ variable stopped
 : unstop 0 stopped cell! ;
 
 : step 
+  pc@@ lastpc!!
+
   emulate 
 ;
 
@@ -215,12 +222,6 @@ variable stopped
 
 variable handler
 :: ; handler cell!
-
-: ;handler  
-  handler cell@ compile,
-  postpone ;
-  latestxt handler cell! 
-; immediate
 
 variable idle
 :: ; idle cell!
@@ -258,6 +259,9 @@ breakpoints 10000 0 fill
   loop
   cr
 ;
+
+\ -- Labels
+
 
 \ -- Instructions emulator
 
@@ -612,6 +616,7 @@ variable dis
 ;
 
 : disasm-pc pc@@ dis!! disasm ;
+: disasm-lastpc lastpc@@ dis!! disasm ;
 
 : 6spaces 6 spaces ;
 : .1" postpone 6spaces postpone ." ; immediate
@@ -925,6 +930,8 @@ variable rsize
   rstart cell@ adr rend cell@ rstart cell@ - dup rsize cell! r@ read-file throw drop \ TODO  memory buffer overflow if malformed file
   r> close-file throw
   cr ." START=" rstart cell@ .#### ." END=" rend cell@ .#### ." SIZE=" rsize cell@ .#### cr
+
+  rstart cell@ pc!!
 ;
 
 \ -- Monitor
@@ -947,7 +954,7 @@ variable rsize
 7606 equ key_ruslat_status \ 00=LAT FF=RUS
 7609 equ key_code \ key code
 760A equ key_repeat_count	
-
+760B equ key_released
 : monitor 
   F800 s" monitor.rom" bload 
   F800 pc!!
@@ -971,25 +978,9 @@ variable rsize
   then
 ;handler
 
-: memory-write-trap ( val ofs -- val ofs 1|0 )
-  \ ROM write
-  dup F800 >= if dup FFFF <= if
-    2dup cr swap ." TRAP ON ROM WRITE " .##  ." TO " .#### 
-    stop 0 exit
-  then then
-
-  dup 7609 = if
-    2dup cr swap ." TRAP ON LAST KEY WRITE " .##  ." TO " .#### 
-    stop 0 exit
-  then
-
-  [ mem-write-trap cell@ compile,  ]
-;
-latestxt mem-write-trap cell!
-
 : .monvars
   ." CURSOR ADDR=" cursor_addr m@@ .#### ." X=" cursor_x m@ .## ." Y=" cursor_y m@ .## cr
-  ." KEY PRESSED=" key_pressed m@ .## ." CODE=" key_code m@ .## ." REPEAT=" key_repeat_count m@ .## cr 
+  ." KEY PRESSED=" key_pressed m@ .## ." RELEASED=" key_released m@ .## ." CODE=" key_code m@ .## ." REPEAT=" key_repeat_count m@ .## cr 
 ;
 
 : cs 1 disasm-pc .regs .monvars .s ;
@@ -1014,23 +1005,64 @@ require colors.5th
 hex
 
 : .screen
+  cursoff
   1 1 at
-  cr ." == SCREEN === " cr
+  cr ." == SCREEN === "
   7FFF 76D0 do
+    i 76D0 - 4e mod 0= if cr then
     i m@ 
-    dup 0= if drop space else emit then
-    i 4e mod 0= if cr then
+    dup 0= if 
+      drop [char] .
+    else 
+      dup 7f = if
+        drop [char] ~
+      else
+        dup 1B = if
+          drop [char] #
+        else
+          dup 1F <= if
+            drop [char] .
+          then
+        then
+      then
+    then
+
+    emit 
+
   loop
+  curson
   cr ." == SCREEN === " cr
   .monvars
 ;
 
+: memory-write-trap ( val ofs -- val ofs 1|0 )
+  \ ROM write
+  dup F800 >= if dup FFFF <= if
+    2dup cr swap ." TRAP ON ROM WRITE " .##  ." TO " .#### 
+    stop 0 exit
+  then then
+
+  dup 7609 = if
+    .screen
+  then
+
+  [ mem-write-trap cell@ compile,  ]
+;
+latestxt mem-write-trap cell!
+
+
+
+\ -- Keyboard emulation
+
 variable pressed_key_code
+variable pressed_key_jitter
 
 : radio-idle
   ekey? if
     ekey dup pressed_key_code cell!
+    15 pressed_key_jitter cell! 
     ." PRESSED KEY " .##
+
   then
   
   pc@@ FCBA = if .screen then
@@ -1039,11 +1071,18 @@ latestxt idle cell!
 
 : keyboard-handler
   pc@@ FE72 = if
-    pressed_key_code @ 
-    dup 0= if drop FF a! \ no key presse
+    pressed_key_code cell@ 
+    dup 0= if drop FF a! \ no key pressed
     else
+      \ cr ." RETURNING PRESSED KEY CODE " dup .##
       a!
-      0 pressed_key_code !
+      pressed_key_jitter cell@ 1-
+      dup 0= if
+        drop
+        0 pressed_key_code !
+      else
+        pressed_key_jitter cell!
+      then
     then    
     return
   then
@@ -1077,5 +1116,5 @@ latestxt idle cell!
 \ - trap on ROM writes
 \ - display stack and even maybe a name of a nearest function
 
-
+monitor 
 
