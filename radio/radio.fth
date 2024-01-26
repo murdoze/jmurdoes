@@ -86,19 +86,19 @@ hex
   r>
 ;
 
-: parity? ( bit-count -- 1=even|0=odd )
+: is-even ( bit-count -- 1=even|0=odd )
   1 and if 0 else 1 then ;
 
-: ?fc! dup 100 >= if +fc! else -fc! then ;
-: ?fp! dup parity? if +fp! else -fp! then ; 
+: ?fc! dup 100 and if +fc! else -fc! then ;
+: ?fp! dup bit-count is-even if +fp! else -fp! then ; 
 : ?fa! ; \ TODO trap on DAA, then decide how to implement
 : ?fz! dup 0= if +fz! else -fz! then ;
 : ?fs! dup 80 and if +fs! else -fs! then ;
 
-: ??fc! dup 1000 >= if +fc! else -fc! then ;
+: ??fc! dup 1000 and if +fc! else -fc! then ;
 
-: ?fszapc! FF and ?fc! ?fp! ?fa! ?fz! ?fs! ;
-: ?fszap! FF and ?fc! ?fp! ?fa! ?fz! ?fs! ;
+: ?fszapc! ?fc! FF and ?fp! ?fa! ?fz! ?fs! ;
+: ?fszap!       FF and ?fp! ?fa! ?fz! ?fs! ;
 
 \ -- Formatting and printing 
 
@@ -212,14 +212,6 @@ variable stopped
   emulate 
 ;
 
-: go 
-  unstop
-  begin
-    running? while
-    step
-  repeat
-;
-
 variable handler
 :: ; handler cell!
 
@@ -299,7 +291,7 @@ latestxt emulator cell!
 04 ( INR B	 ) :< pc++  b@ 1+  ?fszap!  b! >;
 05 ( DCR B       ) :< pc++  b@ 1-  ?fszap!  b! >;
 06 ( MVI B, D8	 ) :< pc++  @pc b!  pc++ >;
-07 ( RLC        1) :< cr ." RLC 07" cr stop >; (	CY	A = A << 1; bit 0 = prev bit 7; CY = prev bit 7 )
+07 ( RLC         ) :< pc++  a@ dup 80 and 7 rshift or 1 lshift ?fc! a! >;
 
 08 ( -           ) :< cr ." NOP 08" cr stop >;
 09 ( DAD B	 ) :< pc++  hl@@ bc@@ + ??fc! hl!! >;
@@ -308,7 +300,7 @@ latestxt emulator cell!
 0C ( INR C	 ) :< pc++  c@ 1+  ?fszap!  c! >;
 0D ( DCR C       ) :< pc++  c@ 1-  ?fszap!  c! >;
 0E ( MVI C, D8	 ) :< pc++  @pc c!  pc++ >;
-0F ( RRC        1) :< cr ." RRC 0F" cr stop >; (	CY	A = A >> 1; bit 7 = prev bit 0; CY = prev bit 0 )
+0F ( RRC         ) :< pc++  a@ dup 1 and dup if +fc! else -fc! then 7 lshift or 1 rshift a! >;
 
 10 ( -           ) :< cr ." NOP 10" cr stop >;
 11 ( LXI D, D16  ) :< pc++  @@pc de!!  pc++ pc++ >;
@@ -317,7 +309,7 @@ latestxt emulator cell!
 14 ( INR D	 ) :< pc++  d@ 1+  ?fszap!  d! >;
 15 ( DCR D       ) :< pc++  d@ 1-  ?fszap!  d! >;
 16 ( MVI D, D8	 ) :< pc++  @pc d!  pc++ >;
-17 ( RAL	1) :< cr ." RAL 17" cr stop >; (	CY	A = A << 1; bit 0 = prev CY; CY = prev bit 7 )
+17 ( RAL	 ) :< pc++  a@ 1 lshift fc@ or ?fc! a! >;
 
 18 ( -           ) :< cr ." NOP 18" cr stop >;
 19 ( DAD D	 ) :< pc++  hl@@ de@@ + ??fc! hl!! >;
@@ -326,7 +318,7 @@ latestxt emulator cell!
 1C ( INR E	 ) :< pc++  e@ 1+  ?fszap!  e! >;
 1D ( DCR E	 ) :< pc++  e@ 1-  ?fszap!  e! >;
 1E ( MVI E, D8	 ) :< pc++  @pc e!  pc++ >;
-1F ( RAR	1) :< cr ." RAR 1F" cr stop >; ( CY	A = A >> 1; bit 7 = prev bit 7; CY = prev bit 0 )
+1F ( RAR	 ) :< pc++  fc@   a@ dup 1 and if +fc! else -fc! then  1 rshift swap if 80 or then  a!  >;
 
 20 ( -           ) :< cr ." NOP 20" cr stop >;
 21 ( LXI H, D16  ) :< pc++  @@pc hl!!  pc++ pc++ >;
@@ -344,7 +336,7 @@ latestxt emulator cell!
 2C ( INR L	 ) :< pc++  l@ 1+  ?fszap!  l! >;
 2D ( DCR L	 ) :< pc++  l@ 1-  ?fszap!  l! >;
 2E ( MVI L, D8	 ) :< pc++  @pc l!  pc++ >;
-2F ( CMA	 ) :< pc++  fa@ if -fa! else +fa! then >; 
+2F ( CMA	 ) :< pc++  a@ ff xor a! >; 
 
 30 ( -           ) :< cr ." NOP 30" cr stop >;
 31 ( LXI SP, D16 ) :< pc++  @@pc sp!!  pc++ pc++ >;
@@ -555,7 +547,7 @@ E5 ( PUSH H	) :< pc++  hl@@ push >;
 E6 ( ANI D8	) :< pc++  a@ @pc and ?fszapc! a!  pc++ >;
 E7 ( RST 4      ) :< pc++  0020 call >;
 
-E8 ( RPE	) :< pc++  fp@ if return then >;
+E8 ( RPE	) :< pc++  fp@ if else return then >;
 E9 ( PCHL	) :< pc++  hl@@ pc!! >;
 EA ( JPE adr	) :< pc++  @@pc  pc++ pc++  fp@ if jump else drop then >;
 EB ( XCHG	) :< pc++  h@ d@ h! d! l@ e@ l! e! >;
@@ -564,7 +556,7 @@ ED ( -	        ) :< cr ." CALL ED" cr stop >;
 EE ( XRI D8     ) :< pc++  a@ @pc xor ?fszapc! a!  pc++ >;
 EF ( RST 5	) :< pc++  0028 call >;
 
-F0 ( RP	 	) :< pc++  fs@ if else return then >;
+F0 ( RP	 	) :< pc++  fs@ if return then >;
 F1 ( POP PSW    ) :< pc++  pop af!! >;
 F2 ( JP adr	) :< pc++  @@pc  pc++ pc++  fs@ if drop else jump then >;
 F3 ( DI	        ) :< pc++ >;
@@ -983,7 +975,9 @@ variable rsize
   ." KEY PRESSED=" key_pressed m@ .## ." RELEASED=" key_released m@ .## ." CODE=" key_code m@ .## ." REPEAT=" key_repeat_count m@ .## cr 
 ;
 
-: cs 1 disasm-pc .regs .monvars .s ;
+variable disasm-count
+1 disasm-count cell!
+: cs disasm-count cell@ disasm-pc .regs .monvars .s ;
 : s step cs ;
 
 \ -- Trace with printing each step
@@ -1008,14 +1002,15 @@ hex
   cursoff
   1 1 at
   cr ." == SCREEN === "
-  7FFF 76D0 do
+  green
+  7FFF 0B - 76D0 do
     i 76D0 - 4e mod 0= if cr then
     i m@ 
     dup 0= if 
-      drop [char] .
+      drop 20
     else 
       dup 7f = if
-        drop [char] ~
+        drop red [char] $
       else
         dup 1B = if
           drop [char] #
@@ -1028,9 +1023,11 @@ hex
     then
 
     emit 
+    green
 
   loop
   curson
+  white
   cr ." == SCREEN === " cr
   .monvars
 ;
@@ -1050,7 +1047,17 @@ hex
 ;
 latestxt mem-write-trap cell!
 
+variable instruction-count
 
+: go 
+  unstop
+  begin
+    running? while
+      step
+      instruction-count cell@ 1+ dup instruction-count cell!
+      1000 mod 0= if .screen then
+  repeat
+;
 
 \ -- Keyboard emulation
 
@@ -1059,13 +1066,28 @@ variable pressed_key_jitter
 
 : radio-idle
   ekey? if
-    ekey dup pressed_key_code cell!
+    ekey 
+    dup 80000009 ( Delete ) = if 
+      cr ." STOPPED BY KEYBOARD INTERRUPT <Delete> " cr
+      stop
+    then
+
+    dup 0F ( CTRL+O ) = if 
+      drop 03 ( CTRL+O is translated into CTRL+C within RADIO )
+    then
+
+    dup 80000000 = if drop 08 then \ left
+    dup 80000001 = if drop 18 then \ right
+    dup 80000002 = if drop 19 then \ up
+    dup 80000003 = if drop 1A then \ down
+ 
+    dup pressed_key_code cell!
     15 pressed_key_jitter cell! 
     ." PRESSED KEY " .##
 
   then
   
-  pc@@ FCBA = if .screen then
+  \ pc@@ FCBA = if .screen then
 ;
 latestxt idle cell!
 
@@ -1074,7 +1096,6 @@ latestxt idle cell!
     pressed_key_code cell@ 
     dup 0= if drop FF a! \ no key pressed
     else
-      \ cr ." RETURNING PRESSED KEY CODE " dup .##
       a!
       pressed_key_jitter cell@ 1-
       dup 0= if
@@ -1095,14 +1116,16 @@ latestxt idle cell!
 
 \ TODO
 \ + Parity flag implement
-\ - Memory trap on write to 8609 - last keyboard flag. Why does it store FF there - indicator that no key is pressed?
-\ - RRC/RLC/RAL/RAR implement
-\ ! the subroutine where inkey (F81B) jumps (FE01) should be emulated, since it's used internally by monitor
-\ ! entry_kbit (FE01) has to be intercepted and return the correct status code
-\ ! entry_scan_kbd (FE72) has to be intercepted and return the correct code
-\ ! entry_gets (FE63) has to be intercepted 
-\ - handler if the stack grows down too much (like now)
-\ --- (Not needed)  ! calls to address FACE (video controller, VG75 setup) have to be simulated, since it waits for the controller status to change, and thus monitor will hang
+\ + Memory trap on write to 8609 - last keyboard flag. Why does it store FF there - indicator that no key is pressed?
+\ + RRC/RLC/RAL/RAR implement
+\ - directived D,1FF and G1100 do not work correctly, to debug. Something with arithmetics
+
+\ - the subroutine where inkey (F81B) jumps (FE01) should be emulated, since it's used internally by monitor
+\ - entry_kbit (FE01) has to be intercepted and return the correct status code
+\ + entry_scan_kbd (FE72) has to be intercepted and return the correct code
+\ - entry_gets (FE63) has to be intercepted 
+\ + handler if the stack grows down too much (like now)
+\ - (Not needed)  ! calls to address FACE (video controller, VG75 setup) have to be simulated, since it waits for the controller status to change, and thus monitor will hang
 \ 
 \ - screen and cursor display
 \ ? graphical screen 
