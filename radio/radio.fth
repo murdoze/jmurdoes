@@ -1,4 +1,4 @@
-\ RADIO-86RK emulator 
+\ RADIO-86RK emulator
 
 vocabulary radio
 radio definitions
@@ -95,7 +95,7 @@ hex
 : ?fz! dup 0= if +fz! else -fz! then ;
 : ?fs! dup 80 and if +fs! else -fs! then ;
 
-: ??fc! dup 1000 and if +fc! else -fc! then ;
+: ??fc! dup 10000 and if +fc! else -fc! then ;
 
 : ?fszapc! ?fc! FF and ?fp! ?fa! ?fz! ?fs! ;
 : ?fszap!       FF and ?fp! ?fa! ?fz! ?fs! ;
@@ -119,6 +119,8 @@ create mem 10000 allot
 : coldstart 
   mem 10000 0 fill 
   0 a! 0 f! 0 b! 0 c! 0 d! 0 e! 0 h! 0 l!
+  0 sp!!
+  0 pc!!
 ;
 
 coldstart
@@ -300,7 +302,7 @@ latestxt emulator cell!
 0C ( INR C	 ) :< pc++  c@ 1+  ?fszap!  c! >;
 0D ( DCR C       ) :< pc++  c@ 1-  ?fszap!  c! >;
 0E ( MVI C, D8	 ) :< pc++  @pc c!  pc++ >;
-0F ( RRC         ) :< pc++  a@ dup 1 and dup if +fc! else -fc! then 7 lshift or 1 rshift a! >;
+0F ( RRC         ) :< pc++  a@ dup 1 and dup if +fc! else -fc! then 8 lshift or 1 rshift a! >;
 
 10 ( -           ) :< cr ." NOP 10" cr stop >;
 11 ( LXI D, D16  ) :< pc++  @@pc de!!  pc++ pc++ >;
@@ -963,12 +965,13 @@ variable rsize
 
 : monitor-stack-handler
   sp@@ 7660 < if
-    sp@@ 0<> if    
+    sp@@ 7640 > if    
       cr ." STACK GROWS TOO MUCH"
       stop
     then
   then
 ;handler
+
 
 : .monvars
   ." CURSOR ADDR=" cursor_addr m@@ .#### ." X=" cursor_x m@ .## ." Y=" cursor_y m@ .## cr
@@ -1039,9 +1042,9 @@ hex
     stop 0 exit
   then then
 
-  dup 7609 = if
-    .screen
-  then
+  \ dup 7609 = if
+  \  .screen
+  \ then
 
   [ mem-write-trap cell@ compile,  ]
 ;
@@ -1070,6 +1073,13 @@ variable pressed_key_jitter
     dup 80000009 ( Delete ) = if 
       cr ." STOPPED BY KEYBOARD INTERRUPT <Delete> " cr
       stop
+      .screen
+      exit
+    then
+
+    dup 80000005 ( End ) = if
+      F800 pc!!
+      exit
     then
 
     dup 0F ( CTRL+O ) = if 
@@ -1086,8 +1096,6 @@ variable pressed_key_jitter
     ." PRESSED KEY " .##
 
   then
-  
-  \ pc@@ FCBA = if .screen then
 ;
 latestxt idle cell!
 
@@ -1113,21 +1121,25 @@ latestxt idle cell!
 
 \ https://emuverse.ru/wiki/%D0%A0%D0%B0%D0%B4%D0%B8%D0%BE-86%D0%A0%D0%9A/%D0%A0%D0%B0%D0%B4%D0%B8%D0%BE_04-87/%D0%9D%D0%B5%D0%BC%D0%BD%D0%BE%D0%B3%D0%BE_%D0%BE_%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B8
 : piton s" PITON.GAM" rload ;
+: xonix s" XONIX.GAM" rload ;
 
 \ TODO
 \ + Parity flag implement
 \ + Memory trap on write to 8609 - last keyboard flag. Why does it store FF there - indicator that no key is pressed?
 \ + RRC/RLC/RAL/RAR implement
-\ - directived D,1FF and G1100 do not work correctly, to debug. Something with arithmetics
-
-\ - the subroutine where inkey (F81B) jumps (FE01) should be emulated, since it's used internally by monitor
-\ - entry_kbit (FE01) has to be intercepted and return the correct status code
+\ + trap on ROM writes
 \ + entry_scan_kbd (FE72) has to be intercepted and return the correct code
-\ - entry_gets (FE63) has to be intercepted 
 \ + handler if the stack grows down too much (like now)
-\ - (Not needed)  ! calls to address FACE (video controller, VG75 setup) have to be simulated, since it waits for the controller status to change, and thus monitor will hang
-\ 
-\ - screen and cursor display
+\ + screen and cursor display
+\ + directives DFF,100, D,1FF and G1100 do not work correctly, to debug. Something with arithmetics
+\ - consider hooking entry_kbhit (FE01) and override all the key jitter/debouncing logic, which is too resource-consuming (??)
+
+\ + G1100 with PITON crashed with stack overflow, to debug
+\ + On XONIX also stack overflow => was caused by stack overflow handler, fixed
+\ - DAA needs to be implemented for XONIX :)
+
+\ - trap at address when REG=VALUE
+\ - breakpoint that works *before* a jump/call to an address happens
 \ ? graphical screen 
 \ - scroll area in the bottom for GForth, top area for disassembler, regs, other stuff, mouse support (?) and screen ?
 \ - breakpoints: execute, read, write
@@ -1136,7 +1148,8 @@ latestxt idle cell!
 \ - watches/variables (helpful for monitor debugging, for instance)
 \ - changed/accessed/executed bytes between breakpoints
 \ - step over (required changing disassembler)
-\ - trap on ROM writes
+\ - step out (trace till nearest return / or set breakpoint on stack return address?)
+\ - print stack
 \ - display stack and even maybe a name of a nearest function
 
 monitor 
